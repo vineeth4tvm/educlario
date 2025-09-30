@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ chapter.title }} - {{ chapter.book.original_name }}{% endblock %}
+
+{% block content %}
+    <h2>{{ chapter.book.original_name }}</h2>
+    <h3>{{ chapter.title }}</h3>
+
+    <hr>
+
+    <div class="generated-content">
+        {% if content %}
+            {{ content.html_content|safe }}
+        {% else %}
+            <p>Content is still being generated or was not found for this chapter. Please check back later.</p>
+        {% endif %}
+    </div>
+
+    <hr>
+
+    <p>
+        <a href="{{ url_for('book_details', book_id=chapter.book_id) }}">Back to Chapter List</a> |
+        <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+    </p>
+{% endblock %}

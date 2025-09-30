@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ book.original_name }}{% endblock %}
+
+{% block content %}
+    <h2>{{ book.original_name }}</h2>
+    <p>Uploaded: {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</p>
+
+    <hr>
+
+    <h3>Chapters</h3>
+    {% if chapters %}
+        <ul>
+            {% for chapter in chapters %}
+                <li>
+                    <a href="{{ url_for('chapter_view', chapter_id=chapter.id) }}">{{ chapter.title }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No chapters found for this book. The AI may still be processing it, or there might have been an issue.</p>
+    {% endif %}
+
+    <p><a href="{{ url_for('dashboard') }}">Back to Dashboard</a></p>
+{% endblock %}

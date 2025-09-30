@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+    <h2>Dashboard</h2>
+    <p>Welcome, {{ name }}!</p>
+    <p>This is your dashboard. You can upload and manage your books from here.</p>
+
+    <hr>
+
+    <h3>Upload a New Book (PDF)</h3>
+    <form method="POST" action="{{ url_for('upload_book') }}" enctype="multipart/form-data">
+        <div>
+            <label for="file">Choose PDF file</label>
+            <input type="file" name="file" accept=".pdf" required>
+        </div>
+        <button type="submit">Upload</button>
+    </form>
+
+    <hr>
+
+    <h3>My Books</h3>
+    {% if books %}
+        <ul>
+            {% for book in books %}
+                <li>
+                    <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
+                    - Uploaded on {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You haven't uploaded any books yet.</p>
+    {% endif %}
+{% endblock %}
