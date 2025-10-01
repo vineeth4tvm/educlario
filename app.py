@@ -23,6 +23,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # --- Gemini API Configuration ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_PRO_MODEL = os.getenv("GEMINI_PRO_MODEL", "gemini-1.5-pro-latest")
 if not GEMINI_API_KEY:
     print("WARNING: GEMINI_API_KEY is not set. Content generation will fail.")
 else:
@@ -161,7 +162,7 @@ def upload_book():
             """
 
             # Call the model
-            model = genai.GenerativeModel('gemini-1.5-pro-latest')
+            model = genai.GenerativeModel(GEMINI_PRO_MODEL)
             response = model.generate_content([prompt, uploaded_file])
 
             # Clean and parse the JSON response
