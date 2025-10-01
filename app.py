@@ -223,5 +223,16 @@ def chapter_view(chapter_id):
     return render_template('chapter_view.html', chapter=chapter, content=content)
 
 # --- Main Execution ---
+def create_tables():
+    with app.app_context():
+        # Check if the migrations directory exists and has been stamped
+        if os.path.exists(os.path.join(app.root_path, 'migrations')):
+            from flask_migrate import upgrade
+            upgrade()
+        else:
+            # Fallback for initial setup if migrations aren't initialized yet
+            db.create_all()
+
 if __name__ == '__main__':
+    create_tables()
     app.run(debug=True)
