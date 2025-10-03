@@ -12,25 +12,59 @@
     <h3>Upload a New Book (PDF)</h3>
     <form method="POST" action="{{ url_for('upload_book') }}" enctype="multipart/form-data">
         <div>
+            <label for="course">Assign to Course (Optional)</label>
+            <select name="course_id">
+                <option value="">-- No Course --</option>
+                {% for course in courses %}
+                    <option value="{{ course.id }}">{{ course.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
             <label for="file">Choose PDF file</label>
             <input type="file" name="file" accept=".pdf" required>
         </div>
-        <button type="submit">Upload</button>
+        <button type="submit">Upload Book</button>
     </form>
 
     <hr>
 
-    <h3>My Books</h3>
-    {% if books %}
+    <h3>My Courses</h3>
+    <p><a href="{{ url_for('create_course') }}">Create a New Course</a></p>
+    {% if courses %}
+        {% for course in courses %}
+            <h4>{{ course.name }} <small>({{ course.provider or 'No provider' }})</small></h4>
+            {% set books = books_by_course.get(course.id, []) %}
+            {% if books %}
+                <ul>
+                    {% for book in books %}
+                    <li>
+                        <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
+                        - Uploaded on {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No books have been added to this course yet.</p>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <p>You haven't created any courses yet.</p>
+    {% endif %}
+
+    <hr>
+
+    <h3>Standalone Books</h3>
+    {% if standalone_books %}
         <ul>
-            {% for book in books %}
-                <li>
-                    <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
-                    - Uploaded on {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
-                </li>
+            {% for book in standalone_books %}
+            <li>
+                <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
+                - Uploaded on {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+            </li>
             {% endfor %}
         </ul>
     {% else %}
-        <p>You haven't uploaded any books yet.</p>
+        <p>You have no standalone books.</p>
     {% endif %}
 {% endblock %}
