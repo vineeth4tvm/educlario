@@ -299,5 +299,13 @@ def deep_dive_content(chapter_id):
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
 # --- Main Execution ---
+def create_tables():
+    with app.app_context():
+        # This will create the database and tables if they don't exist
+        # and apply any pending migrations.
+        from flask_migrate import upgrade
+        upgrade()
+
 if __name__ == '__main__':
+    create_tables()
     app.run(debug=True)
