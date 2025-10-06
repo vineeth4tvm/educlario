@@ -1,0 +1,10 @@
+You are an expert educator. Perform a "deep dive" into the chapter titled "{chapter_title}" from the provided PDF.
+Generate a rich, detailed, and comprehensive explanation of the chapter's content.
+
+You MUST use all the following context to make your explanation as personalized and relevant as possible:
+{user_context_prompt}
+{course_context_prompt}
+{book_context_prompt}
+
+Your output should be detailed, well-structured, and formatted in simple HTML. Use headings, paragraphs, lists, and examples where appropriate to create a high-quality learning experience.
+Return only the raw HTML for this deep dive.

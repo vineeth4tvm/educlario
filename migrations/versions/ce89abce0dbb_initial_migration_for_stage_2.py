@@ -1,8 +1,8 @@
-"""Initial migration for Stage 2 models
+"""Initial migration for Stage 2
 
-Revision ID: 68ef88b9771d
+Revision ID: ce89abce0dbb
 Revises:
-Create Date: 2025-10-03 10:36:11.496789
+Create Date: 2025-10-03 13:35:33.357645
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '68ef88b9771d'
+revision = 'ce89abce0dbb'
 down_revision = None
 branch_labels = None
 depends_on = None

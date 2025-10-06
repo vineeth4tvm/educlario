@@ -40,7 +40,7 @@ class Course(db.Model):
 class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True) # Can be null if not in a course
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
     filename = db.Column(db.String(150), nullable=False)
     original_name = db.Column(db.String(150), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -53,8 +53,6 @@ class Chapter(db.Model):
     book_id = db.Column(db.Integer, db.ForeignKey('book.id'), nullable=False)
     chapter_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(200), nullable=False)
-    # The page_range is no longer strictly necessary with the new approach,
-    # but it's useful metadata to keep if the AI provides it.
     page_range = db.Column(db.String(50), nullable=True)
 
     book = db.relationship('Book', backref=db.backref('chapters', lazy=True, cascade="all, delete-orphan"))
@@ -72,10 +70,46 @@ class UserContext(db.Model):
 
     user = db.relationship('User', backref=db.backref('context', uselist=False, lazy=True))
 
+class CourseContext(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False, unique=True)
+    subject_analysis = db.Column(db.Text, nullable=True)
+    prerequisites = db.Column(db.Text, nullable=True)
+    real_world_apps = db.Column(db.Text, nullable=True)
+    cultural_connections = db.Column(db.Text, nullable=True)
+
+    course = db.relationship('Course', backref=db.backref('context', uselist=False, lazy=True))
+
+class BookContext(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    book_id = db.Column(db.Integer, db.ForeignKey('book.id'), nullable=False, unique=True)
+    themes = db.Column(db.Text, nullable=True)
+    structure = db.Column(db.Text, nullable=True)
+    complexity_map = db.Column(db.Text, nullable=True)
+
+    book = db.relationship('Book', backref=db.backref('context', uselist=False, lazy=True))
+
+class BookPreface(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    book_id = db.Column(db.Integer, db.ForeignKey('book.id'), nullable=False, unique=True)
+    html_content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    book = db.relationship('Book', backref=db.backref('preface', uselist=False, lazy=True))
+
+class BookSummary(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    book_id = db.Column(db.Integer, db.ForeignKey('book.id'), nullable=False, unique=True)
+    html_content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    book = db.relationship('Book', backref=db.backref('summary', uselist=False, lazy=True))
+
 class GeneratedContent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     chapter_id = db.Column(db.Integer, db.ForeignKey('chapter.id'), nullable=False, unique=True)
-    html_content = db.Column(db.Text, nullable=False)
+    html_content = db.Column(db.Text, nullable=False) # Overview content
+    rich_html_content = db.Column(db.Text, nullable=True) # "Deep dive" content
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     chapter = db.relationship('Chapter', backref=db.backref('generated_content', lazy=True, uselist=False, cascade="all, delete-orphan"))

@@ -1,0 +1,4 @@
+Analyze the provided PDF document and return a JSON object with the following keys:
+- "themes": ["Major theme 1", "Major theme 2"],
+- "structure": "A brief description of the book's structure.",
+- "complexity_map": "A short analysis of how complexity progresses."

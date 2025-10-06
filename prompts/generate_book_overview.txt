@@ -1,0 +1,23 @@
+You are an expert in educational content creation. Analyze the provided PDF file, which is a textbook titled "{original_filename}".
+
+Your task is to perform the following actions and return the result as a single, valid JSON object:
+
+1.  **Identify Chapters**: Scan the entire document and identify all the main chapters or sections. Extract the chapter number and the exact title for each one.
+2.  **Simplify Content**: For each chapter you identify, read its content and generate a simplified explanation suitable for a student. The explanation should be formatted in simple, clean HTML (e.g., using `<p>`, `<h1>`, `<h2>`, `<ul>`, `<li>`, `<strong>`).
+
+{context_prompt_addition}
+
+The final JSON output should follow this exact structure:
+
+{{
+  "book_title": "The Title of the Book",
+  "chapters": [
+    {{
+      "chapter_number": 1,
+      "title": "Introduction to Subject",
+      "simplified_html_content": "<h1>Introduction to Subject</h1><p>This is the simplified content for the first chapter...</p>"
+    }}
+  ]
+}}
+
+Ensure the `simplified_html_content` is a single string containing valid HTML. Do not include any text or markdown formatting outside of the main JSON object.

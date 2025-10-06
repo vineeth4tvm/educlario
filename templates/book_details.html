@@ -8,6 +8,14 @@
 
     <hr>
 
+    {% if book.preface %}
+    <div class="book-preface">
+        <h3>Preface</h3>
+        {{ book.preface.html_content|safe }}
+    </div>
+    <hr>
+    {% endif %}
+
     <h3>Chapters</h3>
     {% if chapters %}
         <ul>
@@ -19,6 +27,16 @@
         </ul>
     {% else %}
         <p>No chapters found for this book. The AI may still be processing it, or there might have been an issue.</p>
+    {% endif %}
+
+    <hr>
+
+    {% if book.summary %}
+    <div class="book-summary">
+        <h3>Summary & Key Applications</h3>
+        {{ book.summary.html_content|safe }}
+    </div>
+    <hr>
     {% endif %}
 
     <p><a href="{{ url_for('dashboard') }}">Back to Dashboard</a></p>
