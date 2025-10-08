@@ -163,7 +163,7 @@ def create_course():
                         subject_analysis=context_data.get('subject_analysis'),
                         prerequisites=json.dumps(context_data.get('prerequisites')),
                         real_world_apps=json.dumps(context_data.get('real_world_apps')),
-                        cultural_connections=context_data.get('cultural_connections')
+                        cultural_connections=json.dumps(context_data.get('cultural_connections'))
                     )
                     db.session.add(new_context)
                     db.session.commit()
