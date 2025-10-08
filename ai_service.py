@@ -76,7 +76,7 @@ def get_book_overview_and_chapters(filepath, original_filename, user_context_tex
         context_prompt_addition=context_prompt_addition
     )
     if not prompt:
-        return None
+        return None, None
 
     uploaded_file = genai.upload_file(path=filepath, display_name=original_filename)
     response = pro_model.generate_content([prompt, uploaded_file])
