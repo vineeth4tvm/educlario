@@ -110,6 +110,7 @@ class GeneratedContent(db.Model):
     chapter_id = db.Column(db.Integer, db.ForeignKey('chapter.id'), nullable=False, unique=True)
     html_content = db.Column(db.Text, nullable=False) # Overview content
     rich_html_content = db.Column(db.Text, nullable=True) # "Deep dive" content
+    questions_json = db.Column(db.Text, nullable=True) # Assessment questions
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     chapter = db.relationship('Chapter', backref=db.backref('generated_content', lazy=True, uselist=False, cascade="all, delete-orphan"))

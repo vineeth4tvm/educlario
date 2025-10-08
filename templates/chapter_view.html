@@ -37,8 +37,59 @@
 
     <hr>
 
+    <h3>Assessment</h3>
+    {% if content and content.questions_json %}
+        {% set assessment = content.questions_json | fromjson %}
+        <div class="assessment-questions">
+            {% for q in assessment.assessment %}
+                <div class="question">
+                    <p><strong>{{ loop.index }}. {{ q.question }}</strong> ({{ q.type }})</p>
+                    {% if q.type == 'mcq' %}
+                        <ul>
+                        {% for option in q.options %}
+                            <li>{{ option }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                    <button class="show-answer-btn">Show Answer</button>
+                    <div class="answer" style="display: none;">
+                        <p><strong>Answer:</strong> {{ q.answer }}</p>
+                        {% if q.explanation %}
+                            <p><em>Explanation: {{ q.explanation }}</em></p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No assessment has been generated for this chapter yet.</p>
+        <form method="POST" action="{{ url_for('generate_assessment', chapter_id=chapter.id) }}">
+            <button type="submit">Generate Assessment</button>
+        </form>
+    {% endif %}
+
+    <hr>
+
     <p>
         <a href="{{ url_for('book_details', book_id=chapter.book_id) }}">Back to Chapter List</a> |
         <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
     </p>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const answerButtons = document.querySelectorAll('.show-answer-btn');
+    answerButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const answerDiv = this.nextElementSibling;
+            if (answerDiv.style.display === 'none') {
+                answerDiv.style.display = 'block';
+                this.textContent = 'Hide Answer';
+            } else {
+                answerDiv.style.display = 'none';
+                this.textContent = 'Show Answer';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

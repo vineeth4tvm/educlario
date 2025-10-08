@@ -1,0 +1,46 @@
+You are an expert in creating educational assessments. Based on the following chapter content, generate a set of questions to test a student's understanding.
+
+**Chapter Content:**
+---
+{chapter_content}
+---
+
+**Instructions:**
+Generate a JSON object containing a list of questions. The list should include a mix of the following types:
+- 5 Multiple Choice Questions (MCQs)
+- 3 Short Answer Questions
+- 2 Paragraph Questions
+- 3 Fill-in-the-Blank Questions
+
+The final JSON object should follow this exact structure:
+{{
+  "assessment": [
+    {{
+      "type": "mcq",
+      "question": "What is the primary topic of this chapter?",
+      "options": ["Option A", "Option B", "Option C", "Correct Answer"],
+      "answer": "Correct Answer",
+      "explanation": "A brief explanation of why this is the correct answer."
+    }},
+    {{
+      "type": "short_answer",
+      "question": "Define the key term 'X' in one sentence.",
+      "answer": "The definition of key term 'X'.",
+      "explanation": "Further context for the definition."
+    }},
+    {{
+      "type": "paragraph",
+      "question": "Explain the relationship between Concept A and Concept B.",
+      "answer": "A detailed paragraph explaining the relationship.",
+      "explanation": ""
+    }},
+    {{
+      "type": "fill_in_the_blank",
+      "question": "The capital of France is ______.",
+      "answer": "Paris",
+      "explanation": ""
+    }}
+  ]
+}}
+
+Ensure the entire output is a single, valid JSON object without any other text or markdown.

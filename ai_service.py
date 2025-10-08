@@ -105,6 +105,19 @@ def get_book_preface(uploaded_file):
     response = pro_model.generate_content([prompt, uploaded_file])
     return response.text
 
+def get_assessment_for_chapter(chapter_content):
+    """Generates a set of assessment questions for a given chapter's content."""
+    prompt = _load_prompt(
+        'generate_assessment.txt',
+        chapter_content=chapter_content
+    )
+    if not prompt:
+        return None
+
+    # Use the Pro model as this is a complex generation task
+    response = pro_model.generate_content(prompt)
+    return json.loads(_clean_json_response(response.text))
+
 def get_book_summary(uploaded_file):
     """Generates a book summary."""
     prompt = _load_prompt('generate_book_summary.txt')

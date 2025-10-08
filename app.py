@@ -13,6 +13,14 @@ import ai_service
 # --- App Initialization ---
 app = Flask(__name__)
 
+# --- Custom Jinja Filter ---
+def from_json(json_string):
+    if json_string:
+        return json.loads(json_string)
+    return None
+
+app.jinja_env.filters['fromjson'] = from_json
+
 # --- Configuration ---
 load_dotenv()
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a_default_secret_key_for_development')
@@ -272,6 +280,37 @@ def chapter_view(chapter_id):
         return redirect(url_for('dashboard'))
     content = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
     return render_template('chapter_view.html', chapter=chapter, content=content)
+
+@app.route('/chapter/<int:chapter_id>/generate_assessment', methods=['POST'])
+@login_required
+def generate_assessment(chapter_id):
+    chapter = Chapter.query.get_or_404(chapter_id)
+    if chapter.book.user_id != current_user.id:
+        flash("You do not have permission to modify this content.")
+        return redirect(url_for('dashboard'))
+
+    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
+    if not content_record:
+        flash("Cannot generate assessment as no content exists for this chapter.")
+        return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
+    try:
+        # Use the rich content if it exists, otherwise use the overview
+        content_to_assess = content_record.rich_html_content or content_record.html_content
+
+        assessment_json = ai_service.get_assessment_for_chapter(content_to_assess)
+
+        if assessment_json:
+            content_record.questions_json = json.dumps(assessment_json)
+            db.session.commit()
+            flash("Assessment generated successfully!")
+        else:
+            flash("Failed to generate assessment from AI service.")
+
+    except Exception as e:
+        flash(f"An error occurred during assessment generation: {e}")
+
+    return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
 @app.route('/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
 @login_required
