@@ -135,28 +135,56 @@ def get_book_context(uploaded_file):
     return json.loads(_clean_json_response(response.text))
 
 def get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db):
-    """Generates rich, context-aware content for a specific chapter."""
-    user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
-
-    course_context_prompt = ""
-    if course_context_db:
-        course_context_prompt = f"COURSE CONTEXT: Subject: {course_context_db.subject_analysis}. Prerequisites: {course_context_db.prerequisites}. Real-world applications: {course_context_db.real_world_apps}."
-
-    book_context_prompt = ""
-    if book_context_db:
-        book_context_prompt = f"BOOK CONTEXT: Themes: {book_context_db.themes}. Structure: {book_context_db.structure}."
-
+    """
+    Generates rich, context-aware content for a chapter using a two-step
+    "generate and refine" process to improve quality and accuracy.
+    """
     filepath = os.path.join('uploads', book.filename)
     uploaded_file = genai.upload_file(path=filepath, display_name=book.original_name)
 
-    prompt = _load_prompt(
+    # --- Step 1: Generate the initial deep dive ---
+    user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
+    course_context_prompt = ""
+    if course_context_db:
+        cc = course_context_db
+        course_context_prompt = f"COURSE CONTEXT: Subject: {cc.subject_analysis}. Prerequisites: {cc.prerequisites}. Real-world applications: {cc.real_world_apps}."
+    book_context_prompt = ""
+    if book_context_db:
+        bc = book_context_db
+        book_context_prompt = f"BOOK CONTEXT: Themes: {bc.themes}. Structure: {bc.structure}."
+
+    initial_prompt = _load_prompt(
         'generate_deep_dive.txt',
         chapter_title=chapter.title,
         user_context_prompt=user_context_prompt,
         course_context_prompt=course_context_prompt,
         book_context_prompt=book_context_prompt
     )
-    if not prompt:
-        return None
-    response = pro_model.generate_content([prompt, uploaded_file])
-    return response.text
+    if not initial_prompt:
+        raise Exception("Could not load the initial deep dive prompt.")
+
+    generation_config = genai.types.GenerationConfig(max_output_tokens=8192)
+    initial_response = pro_model.generate_content(
+        [initial_prompt, uploaded_file],
+        generation_config=generation_config
+    )
+    initial_ai_content = initial_response.text
+
+    # --- Step 2: Extract the original text for the same chapter ---
+    # This is a simpler, direct prompt to get the source material.
+    text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'. Do not summarize, simplify, or format it in any way."
+    original_text_response = pro_model.generate_content([text_extraction_prompt, uploaded_file])
+    original_chapter_text = original_text_response.text
+
+    # --- Step 3: Refine the content using the original text as a reference ---
+    refinement_prompt = _load_prompt(
+        'refine_deep_dive.txt',
+        original_chapter_text=original_chapter_text,
+        initial_ai_content=initial_ai_content
+    )
+    if not refinement_prompt:
+        raise Exception("Could not load the refinement prompt.")
+
+    final_response = pro_model.generate_content(refinement_prompt)
+
+    return final_response.text

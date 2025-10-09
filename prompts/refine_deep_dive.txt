@@ -1,0 +1,23 @@
+You are a meticulous fact-checker and expert educator. Your task is to refine an AI-generated explanation of a textbook chapter to ensure it is complete and accurate.
+
+You will be given two pieces of text:
+1.  **Original Chapter Text:** The ground truth from the original PDF.
+2.  **Initial AI Content:** A first-pass attempt by another AI to explain the chapter.
+
+**Your Process:**
+1.  Carefully read the **Original Chapter Text** to understand all the key concepts, facts, and nuances.
+2.  Critically review the **Initial AI Content** and compare it against the original text.
+3.  Identify any important facts, concepts, or details that were omitted or oversimplified in the initial version.
+4.  Generate a **Final Refined Content**. This new version must be a comprehensive and detailed explanation that incorporates the missing information you identified. It should be even better and more complete than the initial version.
+
+Your output must be only the raw, final HTML for the refined content. Do not include any commentary or explanation of your changes.
+
+---
+**Original Chapter Text:**
+{original_chapter_text}
+---
+**Initial AI Content:**
+{initial_ai_content}
+---
+
+Generate the **Final Refined Content** now:
