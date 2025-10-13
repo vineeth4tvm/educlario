@@ -211,6 +211,12 @@ def upload_book():
             # Call the AI service; it now returns the data and the uploaded file handle
             overview_data, uploaded_file = ai_service.get_book_overview_and_chapters(filepath, original_filename, user_context_text)
 
+            # --- Auto-detect Subject ---
+            detected_subject = ai_service.detect_subject_from_book(uploaded_file)
+            new_book.subject = detected_subject
+            db.session.commit()
+            # ---
+
             if not overview_data or 'chapters' not in overview_data:
                  raise Exception("AI service failed to return valid chapter data.")
 

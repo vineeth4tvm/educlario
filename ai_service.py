@@ -83,6 +83,16 @@ def get_book_overview_and_chapters(filepath, original_filename, user_context_tex
     # Return the file handle so it can be reused for other calls
     return json.loads(_clean_json_response(response.text)), uploaded_file
 
+def detect_subject_from_book(uploaded_file):
+    """Analyzes a book to detect its primary academic subject."""
+    prompt = _load_prompt('detect_book_subject.txt')
+    if not prompt:
+        return "General Studies" # Fallback subject
+
+    # Use the flash model for this quick classification task
+    response = flash_model.generate_content([prompt, uploaded_file])
+    return response.text.strip()
+
 # --- Service Functions for Stage 3 ---
 
 def get_course_context(course_name, provider):

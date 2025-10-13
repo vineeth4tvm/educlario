@@ -1,0 +1,5 @@
+Analyze the content of the provided textbook PDF. Based on its themes, topics, and terminology, determine the most likely primary academic subject of this book.
+
+Return only the name of the subject and nothing else.
+
+For example, if the book is about supply and demand, return "Economics". If it is about the works of Shakespeare, return "Literature". If it is about calculus, return "Mathematics".

@@ -41,6 +41,7 @@ class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
+    subject = db.Column(db.String(150), nullable=True) # Auto-detected subject
     filename = db.Column(db.String(150), nullable=False)
     original_name = db.Column(db.String(150), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)

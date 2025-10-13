@@ -4,7 +4,12 @@
 
 {% block content %}
     <h2>{{ book.original_name }}</h2>
-    <p>Uploaded: {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</p>
+    <p>
+        Uploaded: {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}<br>
+        {% if book.subject %}
+            <strong>Detected Subject:</strong> {{ book.subject }}
+        {% endif %}
+    </p>
 
     <hr>
 
