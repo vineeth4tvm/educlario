@@ -2,8 +2,11 @@ You are an expert in educational content creation. Analyze the provided PDF file
 
 Your task is to perform the following actions and return the result as a single, valid JSON object:
 
-1.  **Identify Chapters**: Scan the entire document and identify all the main chapters or sections. Extract the chapter number and the exact title for each one.
-2.  **Simplify Content**: For each chapter you identify, read its content and generate a simplified explanation suitable for a student. The explanation should be formatted in simple, clean HTML (e.g., using `<p>`, `<h1>`, `<h2>`, `<ul>`, `<li>`, `<strong>`).
+1.  **Identify Chapters**: Scan the entire document and identify all the main chapters or sections. For each chapter, you must extract:
+    - The `chapter_number` (as an integer).
+    - The `title` (as a string).
+    - The `page_range` (as a string, e.g., "15-28").
+2.  **Generate Overview Content**: For each chapter you identify, read its content and generate a brief, simplified overview suitable for a student. The explanation should be formatted in simple, clean HTML.
 
 {context_prompt_addition}
 

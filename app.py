@@ -225,7 +225,8 @@ def upload_book():
                 new_chapter = Chapter(
                     book_id=new_book.id,
                     chapter_number=chapter_data.get('chapter_number'),
-                    title=chapter_data.get('title', f"Chapter {chapter_data.get('chapter_number')}")
+                    title=chapter_data.get('title', f"Chapter {chapter_data.get('chapter_number')}"),
+                    page_range=chapter_data.get('page_range') # Save the page range
                 )
                 db.session.add(new_chapter)
                 db.session.commit()
@@ -315,6 +316,46 @@ def generate_assessment(chapter_id):
 
     except Exception as e:
         flash(f"An error occurred during assessment generation: {e}")
+
+    return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
+@app.route('/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
+@login_required
+def generate_study_aids(chapter_id):
+    chapter = Chapter.query.get_or_404(chapter_id)
+    if chapter.book.user_id != current_user.id:
+        flash("You do not have permission to modify this content.")
+        return redirect(url_for('dashboard'))
+
+    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
+    if not content_record:
+        flash("Cannot generate study aids as no content exists for this chapter.")
+        return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
+    try:
+        # Use the rich content if it exists, otherwise use the overview
+        content_to_process = content_record.rich_html_content or content_record.html_content
+
+        # Generate Flashcards
+        flashcards_json = ai_service.get_flashcards_for_chapter(content_to_process)
+        if flashcards_json:
+            content_record.flashcards_json = json.dumps(flashcards_json)
+            flash("Flashcards generated successfully!")
+        else:
+            flash("Failed to generate flashcards from AI service.")
+
+        # Generate Mind Map
+        mind_map_json = ai_service.get_mind_map_for_chapter(content_to_process)
+        if mind_map_json:
+            content_record.mind_map_json = json.dumps(mind_map_json)
+            flash("Mind map generated successfully!")
+        else:
+            flash("Failed to generate mind map from AI service.")
+
+        db.session.commit()
+
+    except Exception as e:
+        flash(f"An error occurred during study aid generation: {e}")
 
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 

@@ -112,6 +112,8 @@ class GeneratedContent(db.Model):
     html_content = db.Column(db.Text, nullable=False) # Overview content
     rich_html_content = db.Column(db.Text, nullable=True) # "Deep dive" content
     questions_json = db.Column(db.Text, nullable=True) # Assessment questions
+    flashcards_json = db.Column(db.Text, nullable=True) # Flashcard data
+    mind_map_json = db.Column(db.Text, nullable=True) # Mind map data
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     chapter = db.relationship('Chapter', backref=db.backref('generated_content', lazy=True, uselist=False, cascade="all, delete-orphan"))

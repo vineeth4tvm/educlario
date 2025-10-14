@@ -1,0 +1,40 @@
+You are an expert in conceptual analysis and structuring information. Based on the following chapter content, generate a mind map representing the key concepts and their relationships.
+
+**Chapter Content:**
+---
+{chapter_content}
+---
+
+**Instructions:**
+Generate a JSON object representing a hierarchical mind map. The root of the object should be a single "mind_map" key. The value should be an object with a "name" for the central topic and a "children" list. Each child can have its own "name" and "children" list to create a nested, tree-like structure.
+
+The final JSON object should follow this exact structure:
+{{
+  "mind_map": {{
+    "name": "Central Topic of the Chapter",
+    "children": [
+      {{
+        "name": "Main Concept A",
+        "children": [
+          {{ "name": "Sub-concept A1" }},
+          {{ "name": "Sub-concept A2" }}
+        ]
+      }},
+      {{
+        "name": "Main Concept B",
+        "children": [
+          {{ "name": "Sub-concept B1" }},
+          {{
+            "name": "Sub-concept B2",
+            "children": [
+              {{ "name": "Detail B2a" }}
+            ]
+          }}
+        ]
+      }},
+      {{ "name": "Main Concept C" }}
+    ]
+  }}
+}}
+
+Ensure the entire output is a single, valid JSON object without any other text or markdown.

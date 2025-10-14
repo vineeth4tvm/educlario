@@ -3,6 +3,7 @@ import json
 import re
 import google.generativeai as genai
 from pathlib import Path
+from pdf_utils import trim_pdf, cleanup_temp_file
 
 # --- Configuration ---
 PROMPTS_DIR = Path(__file__).resolve().parent / 'prompts'
@@ -128,6 +129,30 @@ def get_assessment_for_chapter(chapter_content):
     response = pro_model.generate_content(prompt)
     return json.loads(_clean_json_response(response.text))
 
+def get_flashcards_for_chapter(chapter_content):
+    """Generates a set of flashcards for a given chapter's content."""
+    prompt = _load_prompt(
+        'generate_flashcards.txt',
+        chapter_content=chapter_content
+    )
+    if not prompt:
+        return None
+
+    response = pro_model.generate_content(prompt)
+    return json.loads(_clean_json_response(response.text))
+
+def get_mind_map_for_chapter(chapter_content):
+    """Generates a mind map for a given chapter's content."""
+    prompt = _load_prompt(
+        'generate_mind_map.txt',
+        chapter_content=chapter_content
+    )
+    if not prompt:
+        return None
+
+    response = pro_model.generate_content(prompt)
+    return json.loads(_clean_json_response(response.text))
+
 def get_book_summary(uploaded_file):
     """Generates a book summary."""
     prompt = _load_prompt('generate_book_summary.txt')
@@ -146,55 +171,66 @@ def get_book_context(uploaded_file):
 
 def get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db):
     """
-    Generates rich, context-aware content for a chapter using a two-step
-    "generate and refine" process to improve quality and accuracy.
+    Generates rich, context-aware content for a chapter by first trimming the
+    PDF to only the relevant pages, then using a two-step "generate and refine"
+    process to improve quality and accuracy.
     """
-    filepath = os.path.join('uploads', book.filename)
-    uploaded_file = genai.upload_file(path=filepath, display_name=book.original_name)
+    original_filepath = os.path.join('uploads', book.filename)
+    trimmed_filepath = None
+    try:
+        # --- Step 1: Trim the PDF to the specific chapter's page range ---
+        if not chapter.page_range:
+            raise Exception("Cannot perform deep dive without a page range for the chapter.")
 
-    # --- Step 1: Generate the initial deep dive ---
-    user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
-    course_context_prompt = ""
-    if course_context_db:
-        cc = course_context_db
-        course_context_prompt = f"COURSE CONTEXT: Subject: {cc.subject_analysis}. Prerequisites: {cc.prerequisites}. Real-world applications: {cc.real_world_apps}."
-    book_context_prompt = ""
-    if book_context_db:
-        bc = book_context_db
-        book_context_prompt = f"BOOK CONTEXT: Themes: {bc.themes}. Structure: {bc.structure}."
+        trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+        if not trimmed_filepath:
+            raise Exception("Failed to trim PDF for deep dive.")
 
-    initial_prompt = _load_prompt(
-        'generate_deep_dive.txt',
-        chapter_title=chapter.title,
-        user_context_prompt=user_context_prompt,
-        course_context_prompt=course_context_prompt,
-        book_context_prompt=book_context_prompt
-    )
-    if not initial_prompt:
-        raise Exception("Could not load the initial deep dive prompt.")
+        uploaded_file = genai.upload_file(path=trimmed_filepath, display_name=f"Chapter {chapter.chapter_number} - {book.original_name}")
 
-    generation_config = genai.types.GenerationConfig(max_output_tokens=8192)
-    initial_response = pro_model.generate_content(
-        [initial_prompt, uploaded_file],
-        generation_config=generation_config
-    )
-    initial_ai_content = initial_response.text
+        # --- Step 2: Generate the initial deep dive from the trimmed PDF ---
+        user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
+        course_context_prompt = ""
+        if course_context_db:
+            cc = course_context_db
+            course_context_prompt = f"COURSE CONTEXT: Subject: {cc.subject_analysis}. Prerequisites: {cc.prerequisites}. Real-world applications: {cc.real_world_apps}."
+        book_context_prompt = ""
+        if book_context_db:
+            bc = book_context_db
+            book_context_prompt = f"BOOK CONTEXT: Themes: {bc.themes}. Structure: {bc.structure}."
 
-    # --- Step 2: Extract the original text for the same chapter ---
-    # This is a simpler, direct prompt to get the source material.
-    text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'. Do not summarize, simplify, or format it in any way."
-    original_text_response = pro_model.generate_content([text_extraction_prompt, uploaded_file])
-    original_chapter_text = original_text_response.text
+        initial_prompt = _load_prompt(
+            'generate_deep_dive.txt',
+            chapter_title=chapter.title,
+            user_context_prompt=user_context_prompt,
+            course_context_prompt=course_context_prompt,
+            book_context_prompt=book_context_prompt
+        )
+        if not initial_prompt:
+            raise Exception("Could not load the initial deep dive prompt.")
 
-    # --- Step 3: Refine the content using the original text as a reference ---
-    refinement_prompt = _load_prompt(
-        'refine_deep_dive.txt',
-        original_chapter_text=original_chapter_text,
-        initial_ai_content=initial_ai_content
-    )
-    if not refinement_prompt:
-        raise Exception("Could not load the refinement prompt.")
+        generation_config = genai.types.GenerationConfig(max_output_tokens=8192)
+        initial_response = pro_model.generate_content([initial_prompt, uploaded_file], generation_config=generation_config)
+        initial_ai_content = initial_response.text
 
-    final_response = pro_model.generate_content(refinement_prompt)
+        # --- Step 3: Extract the original text from the trimmed PDF ---
+        text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'. Do not summarize, simplify, or format it in any way."
+        original_text_response = pro_model.generate_content([text_extraction_prompt, uploaded_file])
+        original_chapter_text = original_text_response.text
 
-    return final_response.text
+        # --- Step 4: Refine the content using the original text as a reference ---
+        refinement_prompt = _load_prompt(
+            'refine_deep_dive.txt',
+            original_chapter_text=original_chapter_text,
+            initial_ai_content=initial_ai_content
+        )
+        if not refinement_prompt:
+            raise Exception("Could not load the refinement prompt.")
+
+        final_response = pro_model.generate_content(refinement_prompt)
+        return final_response.text
+
+    finally:
+        # --- Cleanup: Delete the temporary trimmed file ---
+        if trimmed_filepath:
+            cleanup_temp_file(trimmed_filepath)
