@@ -116,7 +116,6 @@ def edit_profile():
             'location': request.form.get('location'),
             'explanation_style': request.form.get('explanation_style')
         }
-
         if not user_context:
             user_context = UserContext(user_id=current_user.id)
             db.session.add(user_context)
@@ -204,29 +203,23 @@ def upload_book():
         db.session.commit()
         flash(f'Book "{original_filename}" uploaded. Processing with AI...')
         try:
-            # Fetch user context to pass to the service
             user_context = UserContext.query.filter_by(user_id=current_user.id).first()
             user_context_text = user_context.generated_context_text if user_context else ""
-
-            # Call the AI service; it now returns the data and the uploaded file handle
             overview_data, uploaded_file = ai_service.get_book_overview_and_chapters(filepath, original_filename, user_context_text)
 
-            # --- Auto-detect Subject ---
             detected_subject = ai_service.detect_subject_from_book(uploaded_file)
             new_book.subject = detected_subject
             db.session.commit()
-            # ---
 
             if not overview_data or 'chapters' not in overview_data:
                  raise Exception("AI service failed to return valid chapter data.")
 
-            # Process the overview results
             for chapter_data in overview_data['chapters']:
                 new_chapter = Chapter(
                     book_id=new_book.id,
                     chapter_number=chapter_data.get('chapter_number'),
                     title=chapter_data.get('title', f"Chapter {chapter_data.get('chapter_number')}"),
-                    page_range=chapter_data.get('page_range') # Save the page range
+                    page_range=chapter_data.get('page_range')
                 )
                 db.session.add(new_chapter)
                 db.session.commit()
@@ -237,8 +230,6 @@ def upload_book():
                 db.session.add(new_content)
             db.session.commit()
             flash('Chapter overviews generated. Now creating book-level content...')
-
-            # --- Book-Level Content Generation ---
             try:
                 preface_html = ai_service.get_book_preface(uploaded_file)
                 db.session.add(BookPreface(book_id=new_book.id, html_content=preface_html))
@@ -257,7 +248,6 @@ def upload_book():
                 flash('Book-level preface, summary, and context generated successfully.')
             except Exception as e:
                 flash(f'An error occurred during book-level content generation: {e}')
-
         except Exception as e:
             db.session.rollback()
             db.session.delete(new_book)
@@ -295,68 +285,20 @@ def generate_assessment(chapter_id):
     if chapter.book.user_id != current_user.id:
         flash("You do not have permission to modify this content.")
         return redirect(url_for('dashboard'))
-
-    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-    if not content_record:
-        flash("Cannot generate assessment as no content exists for this chapter.")
-        return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
     try:
-        # Use the rich content if it exists, otherwise use the overview
-        content_to_assess = content_record.rich_html_content or content_record.html_content
-
-        assessment_json = ai_service.get_assessment_for_chapter(content_to_assess)
-
+        assessment_json = ai_service.get_assessment_for_chapter(chapter, chapter.book)
         if assessment_json:
-            content_record.questions_json = json.dumps(assessment_json)
-            db.session.commit()
-            flash("Assessment generated successfully!")
+            content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
+            if content_record:
+                content_record.questions_json = json.dumps(assessment_json)
+                db.session.commit()
+                flash("Assessment generated successfully!")
+            else:
+                flash("Could not find content record to save assessment.")
         else:
             flash("Failed to generate assessment from AI service.")
-
     except Exception as e:
         flash(f"An error occurred during assessment generation: {e}")
-
-    return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-@app.route('/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
-@login_required
-def generate_study_aids(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to modify this content.")
-        return redirect(url_for('dashboard'))
-
-    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-    if not content_record:
-        flash("Cannot generate study aids as no content exists for this chapter.")
-        return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-    try:
-        # Use the rich content if it exists, otherwise use the overview
-        content_to_process = content_record.rich_html_content or content_record.html_content
-
-        # Generate Flashcards
-        flashcards_json = ai_service.get_flashcards_for_chapter(content_to_process)
-        if flashcards_json:
-            content_record.flashcards_json = json.dumps(flashcards_json)
-            flash("Flashcards generated successfully!")
-        else:
-            flash("Failed to generate flashcards from AI service.")
-
-        # Generate Mind Map
-        mind_map_json = ai_service.get_mind_map_for_chapter(content_to_process)
-        if mind_map_json:
-            content_record.mind_map_json = json.dumps(mind_map_json)
-            flash("Mind map generated successfully!")
-        else:
-            flash("Failed to generate mind map from AI service.")
-
-        db.session.commit()
-
-    except Exception as e:
-        flash(f"An error occurred during study aid generation: {e}")
-
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
 @app.route('/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
@@ -385,13 +327,5 @@ def deep_dive_content(chapter_id):
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
 # --- Main Execution ---
-def create_tables():
-    with app.app_context():
-        # This will create the database and tables if they don't exist
-        # and apply any pending migrations.
-        from flask_migrate import upgrade
-        upgrade()
-
 if __name__ == '__main__':
-    create_tables()
     app.run(debug=True)

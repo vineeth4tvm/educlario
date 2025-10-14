@@ -116,18 +116,49 @@ def get_book_preface(uploaded_file):
     response = pro_model.generate_content([prompt, uploaded_file])
     return response.text
 
-def get_assessment_for_chapter(chapter_content):
-    """Generates a set of assessment questions for a given chapter's content."""
-    prompt = _load_prompt(
-        'generate_assessment.txt',
-        chapter_content=chapter_content
-    )
-    if not prompt:
-        return None
+def get_assessment_for_chapter(chapter, book):
+    """
+    Generates a set of assessment questions for a chapter, prioritizing the
+    most detailed content available (deep dive > original text from trimmed PDF).
+    """
+    content_to_assess = ""
+    trimmed_filepath = None
 
-    # Use the Pro model as this is a complex generation task
-    response = pro_model.generate_content(prompt)
-    return json.loads(_clean_json_response(response.text))
+    try:
+        content_record = chapter.generated_content
+        if content_record and content_record.rich_html_content:
+            # Prioritize the rich, deep-dive content if it exists
+            content_to_assess = content_record.rich_html_content
+        else:
+            # Otherwise, use the original text from a trimmed PDF
+            if not chapter.page_range:
+                raise Exception("Cannot generate assessment without a page range for the chapter.")
+
+            original_filepath = os.path.join('uploads', book.filename)
+            trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+            if not trimmed_filepath:
+                raise Exception("Failed to trim PDF for assessment generation.")
+
+            uploaded_file = genai.upload_file(path=trimmed_filepath, display_name=f"Chapter {chapter.chapter_number} for assessment")
+            text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'. Do not summarize, simplify, or format it in any way."
+            original_text_response = pro_model.generate_content([text_extraction_prompt, uploaded_file])
+            content_to_assess = original_text_response.text
+
+        # Generate the assessment from the selected content
+        prompt = _load_prompt(
+            'generate_assessment.txt',
+            chapter_content=content_to_assess
+        )
+        if not prompt:
+            return None
+
+        response = pro_model.generate_content(prompt)
+        return json.loads(_clean_json_response(response.text))
+
+    finally:
+        # --- Cleanup: Delete the temporary trimmed file if it was created ---
+        if trimmed_filepath:
+            cleanup_temp_file(trimmed_filepath)
 
 def get_flashcards_for_chapter(chapter_content):
     """Generates a set of flashcards for a given chapter's content."""
