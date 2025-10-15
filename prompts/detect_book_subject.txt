@@ -1,5 +1,6 @@
-Analyze the content of the provided textbook PDF. Based on its themes, topics, and terminology, determine the most likely primary academic subject of this book.
+Carefully read the main title, cover page, and major headings of the provided textbook PDF. Based on this information, determine the most specific and accurate subject name for the book.
 
-Return only the name of the subject and nothing else.
+- **Prioritize Specificity:** If the book is titled "Advanced Macroeconomics," the subject is "Advanced Macroeconomics," not just "Economics."
+- **Return Only the Subject Name:** Your output should be a single string containing only the subject name. Do not add any explanation or introductory text.
 
-For example, if the book is about supply and demand, return "Economics". If it is about the works of Shakespeare, return "Literature". If it is about calculus, return "Mathematics".
+For example, if the title is "A Comprehensive Guide to Organic Chemistry," return "Organic Chemistry".
