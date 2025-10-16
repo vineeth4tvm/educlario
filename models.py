@@ -37,10 +37,18 @@ class Course(db.Model):
 
     user = db.relationship('User', backref=db.backref('courses', lazy=True))
 
+class Semester(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
+
+    course = db.relationship('Course', backref=db.backref('semesters', lazy=True, cascade="all, delete-orphan"))
+
 class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
+    semester_id = db.Column(db.Integer, db.ForeignKey('semester.id'), nullable=True)
     subject = db.Column(db.String(150), nullable=True) # Auto-detected subject
     filename = db.Column(db.String(150), nullable=False)
     original_name = db.Column(db.String(150), nullable=False)

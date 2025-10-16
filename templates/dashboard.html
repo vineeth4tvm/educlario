@@ -12,11 +12,17 @@
     <form method="POST" action="{{ url_for('upload_book') }}" enctype="multipart/form-data">
         <div>
             <label for="course">Assign to Course (Optional)</label>
-            <select name="course_id">
+            <select name="course_id" id="course-select">
                 <option value="">-- No Course --</option>
                 {% for course in courses %}
                     <option value="{{ course.id }}">{{ course.name }}</option>
                 {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="semester">Assign to Semester (Optional)</label>
+            <select name="semester_id" id="semester-select" disabled>
+                <option value="">-- Select a course first --</option>
             </select>
         </div>
         <div>
@@ -26,27 +32,53 @@
         <button type="submit">Upload Book</button>
     </form>
 
+    <script>
+        document.getElementById('course-select').addEventListener('change', function() {
+            const courseId = this.value;
+            const semesterSelect = document.getElementById('semester-select');
+
+            // Reset and disable semester dropdown
+            semesterSelect.innerHTML = '<option value="">-- Loading... --</option>';
+            semesterSelect.disabled = true;
+
+            if (courseId) {
+                fetch(`/get_semesters_for_course/${courseId}`)
+                    .then(response => response.json())
+                    .then(semesters => {
+                        semesterSelect.innerHTML = '<option value="">-- Select a semester --</option>';
+                        if (semesters.length > 0) {
+                            semesters.forEach(semester => {
+                                const option = document.createElement('option');
+                                option.value = semester.id;
+                                option.textContent = semester.name;
+                                semesterSelect.appendChild(option);
+                            });
+                            semesterSelect.disabled = false;
+                        } else {
+                            semesterSelect.innerHTML = '<option value="">-- No semesters for this course --</option>';
+                        }
+                    });
+            } else {
+                semesterSelect.innerHTML = '<option value="">-- Select a course first --</option>';
+            }
+        });
+    </script>
+
     <hr>
 
     <h3>My Courses</h3>
     <p><a href="{{ url_for('create_course') }}">Create a New Course</a></p>
     {% if courses %}
+        <ul>
         {% for course in courses %}
-            <h4>{{ course.name }} <small>({{ course.provider or 'No provider' }})</small></h4>
-            {% set books = books_by_course.get(course.id, []) %}
-            {% if books %}
-                <ul>
-                    {% for book in books %}
-                    <li>
-                        <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
-                        - Uploaded on {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
-                    </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No books have been added to this course yet.</p>
-            {% endif %}
+            <li>
+                <a href="{{ url_for('course_details', course_id=course.id) }}">
+                    <strong>{{ course.name }}</strong>
+                </a>
+                 - <small>{{ course.provider or 'No provider' }}</small>
+            </li>
         {% endfor %}
+        </ul>
     {% else %}
         <p>You haven't created any courses yet.</p>
     {% endif %}

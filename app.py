@@ -198,7 +198,25 @@ def upload_book():
                 return redirect(url_for('dashboard'))
         else:
             course_id = None
-        new_book = Book(user_id=current_user.id, course_id=course_id, filename=filename, original_name=original_filename)
+
+        semester_id = request.form.get('semester_id')
+        if semester_id:
+            semester_id = int(semester_id)
+            # Security check: ensure the semester belongs to the selected course
+            semester = Semester.query.filter_by(id=semester_id, course_id=course_id).first()
+            if not semester:
+                flash("Invalid semester selected for the chosen course.")
+                return redirect(url_for('dashboard'))
+        else:
+            semester_id = None
+
+        new_book = Book(
+            user_id=current_user.id,
+            course_id=course_id,
+            semester_id=semester_id,
+            filename=filename,
+            original_name=original_filename
+        )
         db.session.add(new_book)
         db.session.commit()
         flash(f'Book "{original_filename}" uploaded. Processing with AI...')
@@ -257,6 +275,44 @@ def upload_book():
     else:
         flash('Only PDF files are allowed.')
         return redirect(url_for('dashboard'))
+
+@app.route('/get_semesters_for_course/<int:course_id>')
+@login_required
+def get_semesters_for_course(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.user_id != current_user.id:
+        return json.dumps({'error': 'Permission denied'}), 403
+
+    semesters = [{'id': s.id, 'name': s.name} for s in course.semesters]
+    return json.dumps(semesters)
+
+@app.route('/course/<int:course_id>')
+@login_required
+def course_details(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.user_id != current_user.id:
+        flash("You do not have permission to view this course.")
+        return redirect(url_for('dashboard'))
+    return render_template('course_details.html', course=course)
+
+@app.route('/course/<int:course_id>/add_semester', methods=['POST'])
+@login_required
+def add_semester(course_id):
+    course = Course.query.get_or_404(course_id)
+    if course.user_id != current_user.id:
+        flash("You do not have permission to modify this course.")
+        return redirect(url_for('dashboard'))
+
+    name = request.form.get('name')
+    if name:
+        new_semester = Semester(name=name, course_id=course.id)
+        db.session.add(new_semester)
+        db.session.commit()
+        flash(f'Semester "{name}" has been added to {course.name}.')
+    else:
+        flash("Semester name cannot be empty.")
+
+    return redirect(url_for('course_details', course_id=course_id))
 
 @app.route('/book/<int:book_id>')
 @login_required
