@@ -7,8 +7,9 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 from datetime import datetime
 
-from models import db, User, Book, Chapter, GeneratedContent, Course, UserContext, CourseContext, BookContext, BookPreface, BookSummary
+from models import db, User, Book, Chapter, GeneratedContent, Course, UserContext, CourseContext, BookContext, BookPreface, BookSummary, Semester
 import ai_service
+import pdf_utils
 
 # --- App Initialization ---
 app = Flask(__name__)
@@ -94,9 +95,8 @@ def logout():
 @login_required
 def dashboard():
     courses = Course.query.filter_by(user_id=current_user.id).order_by(Course.created_at.desc()).all()
-    books_by_course = {course.id: course.books for course in courses}
     standalone_books = Book.query.filter_by(user_id=current_user.id, course_id=None).order_by(Book.uploaded_at.desc()).all()
-    return render_template('dashboard.html', name=current_user.email, courses=courses, books_by_course=books_by_course, standalone_books=standalone_books)
+    return render_template('dashboard.html', name=current_user.email, courses=courses, standalone_books=standalone_books)
 
 @app.route('/profile')
 @login_required
@@ -189,7 +189,10 @@ def upload_book():
         filename = f"{current_user.id}_{int(datetime.now().timestamp())}_{original_filename}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
+
         course_id = request.form.get('course_id')
+        semester_id = request.form.get('semester_id')
+
         if course_id:
             course_id = int(course_id)
             course = Course.query.filter_by(id=course_id, user_id=current_user.id).first()
@@ -198,11 +201,8 @@ def upload_book():
                 return redirect(url_for('dashboard'))
         else:
             course_id = None
-
-        semester_id = request.form.get('semester_id')
         if semester_id:
             semester_id = int(semester_id)
-            # Security check: ensure the semester belongs to the selected course
             semester = Semester.query.filter_by(id=semester_id, course_id=course_id).first()
             if not semester:
                 flash("Invalid semester selected for the chosen course.")
@@ -210,62 +210,50 @@ def upload_book():
         else:
             semester_id = None
 
-        new_book = Book(
-            user_id=current_user.id,
-            course_id=course_id,
-            semester_id=semester_id,
-            filename=filename,
-            original_name=original_filename
-        )
+        new_book = Book(user_id=current_user.id, course_id=course_id, semester_id=semester_id, filename=filename, original_name=original_filename)
         db.session.add(new_book)
         db.session.commit()
         flash(f'Book "{original_filename}" uploaded. Processing with AI...')
+
         try:
+            # 1. Get chapter list and save them
+            chapter_list_data = ai_service.get_book_chapter_list(filepath, original_filename)
+            if not chapter_list_data or 'chapters' not in chapter_list_data:
+                raise Exception("AI service failed to return a valid chapter list.")
+
+            all_chapter_titles = [ch.get('title', '') for ch in chapter_list_data['chapters']]
+            for chapter_data in chapter_list_data['chapters']:
+                db.session.add(Chapter(book_id=new_book.id, chapter_number=chapter_data.get('chapter_number'), title=chapter_data.get('title'), page_range=chapter_data.get('page_range')))
+            db.session.commit()
+
+            # 2. Generate overview for each chapter using trimmed PDFs
             user_context = UserContext.query.filter_by(user_id=current_user.id).first()
             user_context_text = user_context.generated_context_text if user_context else ""
-            overview_data, uploaded_file = ai_service.get_book_overview_and_chapters(filepath, original_filename, user_context_text)
 
-            detected_subject = ai_service.detect_subject_from_book(uploaded_file)
-            new_book.subject = detected_subject
+            chapters = Chapter.query.filter_by(book_id=new_book.id).all()
+            for chapter in chapters:
+                trimmed_filepath = None
+                try:
+                    trimmed_filepath = pdf_utils.trim_pdf(filepath, chapter.page_range)
+                    if not trimmed_filepath: continue
+
+                    overview_html = ai_service.get_overview_for_trimmed_chapter(trimmed_filepath, chapter.title, user_context_text, all_chapter_titles)
+                    db.session.add(GeneratedContent(chapter_id=chapter.id, html_content=overview_html or "<p>Content generation failed.</p>"))
+                finally:
+                    if trimmed_filepath: pdf_utils.cleanup_temp_file(trimmed_filepath)
             db.session.commit()
+            flash('Chapter overviews generated successfully.')
 
-            if not overview_data or 'chapters' not in overview_data:
-                 raise Exception("AI service failed to return valid chapter data.")
-
-            for chapter_data in overview_data['chapters']:
-                new_chapter = Chapter(
-                    book_id=new_book.id,
-                    chapter_number=chapter_data.get('chapter_number'),
-                    title=chapter_data.get('title', f"Chapter {chapter_data.get('chapter_number')}"),
-                    page_range=chapter_data.get('page_range')
-                )
-                db.session.add(new_chapter)
-                db.session.commit()
-                new_content = GeneratedContent(
-                    chapter_id=new_chapter.id,
-                    html_content=chapter_data.get('simplified_html_content', '<p>Content not available.</p>')
-                )
-                db.session.add(new_content)
+            # 3. Generate Book-Level Content (using full PDF)
+            full_uploaded_file = ai_service.genai.upload_file(path=filepath, display_name=original_filename)
+            new_book.subject = ai_service.detect_subject_from_book(full_uploaded_file)
+            db.session.add(BookPreface(book_id=new_book.id, html_content=ai_service.get_book_preface(full_uploaded_file)))
+            db.session.add(BookSummary(book_id=new_book.id, html_content=ai_service.get_book_summary(full_uploaded_file)))
+            context_data = ai_service.get_book_context(full_uploaded_file)
+            db.session.add(BookContext(book_id=new_book.id, themes=json.dumps(context_data.get('themes')), structure=context_data.get('structure'), complexity_map=context_data.get('complexity_map')))
             db.session.commit()
-            flash('Chapter overviews generated. Now creating book-level content...')
-            try:
-                preface_html = ai_service.get_book_preface(uploaded_file)
-                db.session.add(BookPreface(book_id=new_book.id, html_content=preface_html))
+            flash('Book-level content and subject detected.')
 
-                summary_html = ai_service.get_book_summary(uploaded_file)
-                db.session.add(BookSummary(book_id=new_book.id, html_content=summary_html))
-
-                context_data = ai_service.get_book_context(uploaded_file)
-                db.session.add(BookContext(
-                    book_id=new_book.id,
-                    themes=json.dumps(context_data.get('themes')),
-                    structure=context_data.get('structure'),
-                    complexity_map=context_data.get('complexity_map')
-                ))
-                db.session.commit()
-                flash('Book-level preface, summary, and context generated successfully.')
-            except Exception as e:
-                flash(f'An error occurred during book-level content generation: {e}')
         except Exception as e:
             db.session.rollback()
             db.session.delete(new_book)
@@ -282,7 +270,6 @@ def get_semesters_for_course(course_id):
     course = Course.query.get_or_404(course_id)
     if course.user_id != current_user.id:
         return json.dumps({'error': 'Permission denied'}), 403
-
     semesters = [{'id': s.id, 'name': s.name} for s in course.semesters]
     return json.dumps(semesters)
 
@@ -302,7 +289,6 @@ def add_semester(course_id):
     if course.user_id != current_user.id:
         flash("You do not have permission to modify this course.")
         return redirect(url_for('dashboard'))
-
     name = request.form.get('name')
     if name:
         new_semester = Semester(name=name, course_id=course.id)
@@ -311,7 +297,6 @@ def add_semester(course_id):
         flash(f'Semester "{name}" has been added to {course.name}.')
     else:
         flash("Semester name cannot be empty.")
-
     return redirect(url_for('course_details', course_id=course_id))
 
 @app.route('/book/<int:book_id>')

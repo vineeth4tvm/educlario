@@ -1,8 +1,8 @@
-"""Initial migration for all models up to Stage 4
+"""Initial migration for complete application
 
-Revision ID: 3e8cb6c7d5c1
+Revision ID: dc4f7d5a3c2c
 Revises:
-Create Date: 2025-10-08 10:11:28.595816
+Create Date: 2025-10-17 05:26:18.335225
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '3e8cb6c7d5c1'
+revision = 'dc4f7d5a3c2c'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -49,17 +49,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_user_context')),
     sa.UniqueConstraint('user_id', name=op.f('uq_user_context_user_id'))
     )
-    op.create_table('book',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('course_id', sa.Integer(), nullable=True),
-    sa.Column('filename', sa.String(length=150), nullable=False),
-    sa.Column('original_name', sa.String(length=150), nullable=False),
-    sa.Column('uploaded_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['course_id'], ['course.id'], name=op.f('fk_book_course_id_course')),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], name=op.f('fk_book_user_id_user')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_book'))
-    )
     op.create_table('course_context',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('course_id', sa.Integer(), nullable=False),
@@ -70,6 +59,27 @@ def upgrade():
     sa.ForeignKeyConstraint(['course_id'], ['course.id'], name=op.f('fk_course_context_course_id_course')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_course_context')),
     sa.UniqueConstraint('course_id', name=op.f('uq_course_context_course_id'))
+    )
+    op.create_table('semester',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=150), nullable=False),
+    sa.Column('course_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['course_id'], ['course.id'], name=op.f('fk_semester_course_id_course')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_semester'))
+    )
+    op.create_table('book',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('course_id', sa.Integer(), nullable=True),
+    sa.Column('semester_id', sa.Integer(), nullable=True),
+    sa.Column('subject', sa.String(length=150), nullable=True),
+    sa.Column('filename', sa.String(length=150), nullable=False),
+    sa.Column('original_name', sa.String(length=150), nullable=False),
+    sa.Column('uploaded_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['course_id'], ['course.id'], name=op.f('fk_book_course_id_course')),
+    sa.ForeignKeyConstraint(['semester_id'], ['semester.id'], name=op.f('fk_book_semester_id_semester')),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], name=op.f('fk_book_user_id_user')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_book'))
     )
     op.create_table('book_context',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -114,6 +124,8 @@ def upgrade():
     sa.Column('html_content', sa.Text(), nullable=False),
     sa.Column('rich_html_content', sa.Text(), nullable=True),
     sa.Column('questions_json', sa.Text(), nullable=True),
+    sa.Column('flashcards_json', sa.Text(), nullable=True),
+    sa.Column('mind_map_json', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['chapter_id'], ['chapter.id'], name=op.f('fk_generated_content_chapter_id_chapter')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_generated_content')),
@@ -129,8 +141,9 @@ def downgrade():
     op.drop_table('book_summary')
     op.drop_table('book_preface')
     op.drop_table('book_context')
-    op.drop_table('course_context')
     op.drop_table('book')
+    op.drop_table('semester')
+    op.drop_table('course_context')
     op.drop_table('user_context')
     op.drop_table('course')
     op.drop_table('user')
