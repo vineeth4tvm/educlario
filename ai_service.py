@@ -3,6 +3,7 @@ import json
 import re
 import base64
 import google.generativeai as genai
+from google.generativeai.types import Part
 from pathlib import Path
 from pdf_utils import trim_pdf, cleanup_temp_file
 
