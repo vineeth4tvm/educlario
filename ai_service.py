@@ -1,8 +1,10 @@
 import os
 import json
 import re
+import base64
 import google.generativeai as genai
 from pathlib import Path
+from pdf_utils import trim_pdf, cleanup_temp_file
 
 # --- Configuration ---
 PROMPTS_DIR = Path(__file__).resolve().parent / 'prompts'
@@ -20,7 +22,6 @@ pro_model = genai.GenerativeModel(GEMINI_PRO_MODEL)
 flash_model = genai.GenerativeModel(GEMINI_FLASH_MODEL)
 
 # --- Helper Functions ---
-
 def _load_prompt(prompt_name, **kwargs):
     """Loads a prompt from the prompts directory and formats it."""
     try:
@@ -41,151 +42,140 @@ def _clean_json_response(text):
         return match.group(2).strip()
     return text.strip()
 
+def _create_pdf_part(filepath):
+    """Reads a PDF file and creates a genai.Part object for API requests."""
+    with open(filepath, 'rb') as f:
+        pdf_data = f.read()
+    return genai.Part(inline_data=pdf_data, mime_type='application/pdf')
+
 # --- Service Functions ---
 
 def get_user_context_summary(profile_data):
-    """Generates a personalized learning context summary from user profile data."""
-    prompt = _load_prompt(
-        'generate_user_context.txt',
-        academic_level=profile_data.get('academic_level'),
-        interests=profile_data.get('interests'),
-        learning_style=profile_data.get('learning_style'),
-        location=profile_data.get('location'),
-        explanation_style=profile_data.get('explanation_style')
-    )
-    if not prompt:
-        return None
+    prompt = _load_prompt('generate_user_context.txt', **profile_data)
+    if not prompt: return None
     response = flash_model.generate_content(prompt)
     return response.text
 
 def get_book_chapter_list(filepath, original_filename):
-    """
-    Analyzes a book to get a structured list of its chapters and their page ranges.
-    This version does NOT generate content, only the table of contents.
-    """
     prompt = _load_prompt('get_chapter_list.txt', original_filename=original_filename)
-    if not prompt:
-        return None
-
-    uploaded_file = genai.upload_file(path=filepath, display_name=original_filename)
-    response = pro_model.generate_content([prompt, uploaded_file])
+    if not prompt: return None
+    pdf_part = _create_pdf_part(filepath)
+    response = pro_model.generate_content([prompt, pdf_part])
     return json.loads(_clean_json_response(response.text))
 
 def get_overview_for_trimmed_chapter(trimmed_filepath, chapter_title, user_context_text, all_chapter_titles):
-    """Generates a simplified overview for a single, trimmed chapter PDF."""
     context_prompt_addition = f"The book's chapters are: {', '.join(all_chapter_titles)}."
     if user_context_text:
         context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
-
-    prompt = _load_prompt(
-        'generate_chapter_overview.txt',
-        original_filename=chapter_title,
-        context_prompt_addition=context_prompt_addition
-    )
-    if not prompt:
-        return None
-
-    uploaded_file = genai.upload_file(path=trimmed_filepath, display_name=chapter_title)
-    response = pro_model.generate_content([prompt, uploaded_file])
+    prompt = _load_prompt('generate_chapter_overview.txt', original_filename=chapter_title, context_prompt_addition=context_prompt_addition)
+    if not prompt: return None
+    pdf_part = _create_pdf_part(trimmed_filepath)
+    response = pro_model.generate_content([prompt, pdf_part])
     return response.text
 
-def detect_subject_from_book(uploaded_file):
-    """Analyzes a book to detect its primary academic subject."""
+def detect_subject_from_book(filepath):
     prompt = _load_prompt('detect_book_subject.txt')
-    if not prompt:
-        return "General Studies"
-    response = flash_model.generate_content([prompt, uploaded_file])
+    if not prompt: return "General Studies"
+    pdf_part = _create_pdf_part(filepath)
+    response = flash_model.generate_content([prompt, pdf_part])
     return response.text.strip()
 
 def get_course_context(course_name, provider):
-    """Generates a structured context for a given course."""
-    prompt = _load_prompt(
-        'generate_course_context.txt',
-        course_name=course_name,
-        provider=provider or "Not specified"
-    )
-    if not prompt:
-        return None
+    prompt = _load_prompt('generate_course_context.txt', course_name=course_name, provider=provider or "Not specified")
+    if not prompt: return None
     response = flash_model.generate_content(prompt)
     return json.loads(_clean_json_response(response.text))
 
-def get_book_preface(uploaded_file):
-    """Generates a book preface."""
+def get_book_preface(filepath):
     prompt = _load_prompt('generate_book_preface.txt')
-    if not prompt:
-        return None
-    response = pro_model.generate_content([prompt, uploaded_file])
+    if not prompt: return None
+    pdf_part = _create_pdf_part(filepath)
+    response = pro_model.generate_content([prompt, pdf_part])
     return response.text
 
-def get_book_summary(uploaded_file):
-    """Generates a book summary."""
+def get_book_summary(filepath):
     prompt = _load_prompt('generate_book_summary.txt')
-    if not prompt:
-        return None
-    response = pro_model.generate_content([prompt, uploaded_file])
+    if not prompt: return None
+    pdf_part = _create_pdf_part(filepath)
+    response = pro_model.generate_content([prompt, pdf_part])
     return response.text
 
-def get_book_context(uploaded_file):
-    """Generates structured context (themes, structure) for a book."""
+def get_book_context(filepath):
     prompt = _load_prompt('generate_book_context.txt')
-    if not prompt:
-        return None
-    response = pro_model.generate_content([prompt, uploaded_file])
+    if not prompt: return None
+    pdf_part = _create_pdf_part(filepath)
+    response = pro_model.generate_content([prompt, pdf_part])
     return json.loads(_clean_json_response(response.text))
 
 def get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db):
-    """Generates rich, context-aware content for a specific chapter."""
-    filepath = os.path.join('uploads', book.filename)
-    uploaded_file = genai.upload_file(path=filepath, display_name=book.original_name)
+    original_filepath = os.path.join('uploads', book.filename)
+    trimmed_filepath = None
+    try:
+        if not chapter.page_range: raise Exception("Cannot perform deep dive without a page range.")
+        trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+        if not trimmed_filepath: raise Exception("Failed to trim PDF for deep dive.")
 
-    user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
-    course_context_prompt = ""
-    if course_context_db:
-        cc = course_context_db
-        course_context_prompt = f"COURSE CONTEXT: Subject: {cc.subject_analysis}. Prerequisites: {cc.prerequisites}. Real-world applications: {cc.real_world_apps}."
-    book_context_prompt = ""
-    if book_context_db:
-        bc = book_context_db
-        book_context_prompt = f"BOOK CONTEXT: Themes: {bc.themes}. Structure: {bc.structure}."
+        pdf_part = _create_pdf_part(trimmed_filepath)
 
-    prompt = _load_prompt(
-        'generate_deep_dive.txt',
-        chapter_title=chapter.title,
-        user_context_prompt=user_context_prompt,
-        course_context_prompt=course_context_prompt,
-        book_context_prompt=book_context_prompt
-    )
-    if not prompt:
-        return None
+        # Step 1: Generate initial deep dive
+        user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
+        course_context_prompt = f"COURSE CONTEXT: Subject: {course_context_db.subject_analysis if course_context_db else 'N/A'}."
+        book_context_prompt = f"BOOK CONTEXT: Themes: {book_context_db.themes if book_context_db else 'N/A'}."
+        initial_prompt = _load_prompt('generate_deep_dive.txt', chapter_title=chapter.title, user_context_prompt=user_context_prompt, course_context_prompt=course_context_prompt, book_context_prompt=book_context_prompt)
+        if not initial_prompt: raise Exception("Could not load deep dive prompt.")
 
-    generation_config = genai.types.GenerationConfig(max_output_tokens=8192)
-    response = pro_model.generate_content([prompt, uploaded_file], generation_config=generation_config)
-    return response.text
+        generation_config = genai.types.GenerationConfig(max_output_tokens=8192)
+        initial_response = pro_model.generate_content([initial_prompt, pdf_part], generation_config=generation_config)
+        initial_ai_content = initial_response.text
+
+        # Step 2: Extract original text
+        text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
+        original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
+        original_chapter_text = original_text_response.text
+
+        # Step 3: Refine content
+        refinement_prompt = _load_prompt('refine_deep_dive.txt', original_chapter_text=original_chapter_text, initial_ai_content=initial_ai_content)
+        if not refinement_prompt: raise Exception("Could not load refinement prompt.")
+
+        final_response = pro_model.generate_content(refinement_prompt)
+        return final_response.text
+    finally:
+        if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
 
 def get_assessment_for_chapter(chapter, book):
-    """Generates a set of assessment questions for a chapter."""
-    content_record = chapter.generated_content
-    content_to_assess = content_record.rich_html_content if (content_record and content_record.rich_html_content) else content_record.html_content
+    content_to_assess = ""
+    trimmed_filepath = None
+    try:
+        content_record = chapter.generated_content
+        if content_record and content_record.rich_html_content:
+            content_to_assess = content_record.rich_html_content
+        else:
+            if not chapter.page_range: raise Exception("Cannot generate assessment without a page range.")
+            original_filepath = os.path.join('uploads', book.filename)
+            trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+            if not trimmed_filepath: raise Exception("Failed to trim PDF for assessment generation.")
 
-    prompt = _load_prompt('generate_assessment.txt', chapter_content=content_to_assess)
-    if not prompt:
-        return None
+            pdf_part = _create_pdf_part(trimmed_filepath)
+            text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
+            original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
+            content_to_assess = original_text_response.text
 
-    response = pro_model.generate_content(prompt)
-    return json.loads(_clean_json_response(response.text))
+        prompt = _load_prompt('generate_assessment.txt', chapter_content=content_to_assess)
+        if not prompt: return None
+
+        response = pro_model.generate_content(prompt)
+        return json.loads(_clean_json_response(response.text))
+    finally:
+        if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
 
 def get_flashcards_for_chapter(chapter_content):
-    """Generates a set of flashcards for a given chapter's content."""
     prompt = _load_prompt('generate_flashcards.txt', chapter_content=chapter_content)
-    if not prompt:
-        return None
+    if not prompt: return None
     response = pro_model.generate_content(prompt)
     return json.loads(_clean_json_response(response.text))
 
 def get_mind_map_for_chapter(chapter_content):
-    """Generates a mind map for a given chapter's content."""
     prompt = _load_prompt('generate_mind_map.txt', chapter_content=chapter_content)
-    if not prompt:
-        return None
+    if not prompt: return None
     response = pro_model.generate_content(prompt)
     return json.loads(_clean_json_response(response.text))

@@ -244,12 +244,11 @@ def upload_book():
             db.session.commit()
             flash('Chapter overviews generated successfully.')
 
-            # 3. Generate Book-Level Content (using full PDF)
-            full_uploaded_file = ai_service.genai.upload_file(path=filepath, display_name=original_filename)
-            new_book.subject = ai_service.detect_subject_from_book(full_uploaded_file)
-            db.session.add(BookPreface(book_id=new_book.id, html_content=ai_service.get_book_preface(full_uploaded_file)))
-            db.session.add(BookSummary(book_id=new_book.id, html_content=ai_service.get_book_summary(full_uploaded_file)))
-            context_data = ai_service.get_book_context(full_uploaded_file)
+            # 3. Generate Book-Level Content and Subject (using full PDF)
+            new_book.subject = ai_service.detect_subject_from_book(filepath)
+            db.session.add(BookPreface(book_id=new_book.id, html_content=ai_service.get_book_preface(filepath)))
+            db.session.add(BookSummary(book_id=new_book.id, html_content=ai_service.get_book_summary(filepath)))
+            context_data = ai_service.get_book_context(filepath)
             db.session.add(BookContext(book_id=new_book.id, themes=json.dumps(context_data.get('themes')), structure=context_data.get('structure'), complexity_map=context_data.get('complexity_map')))
             db.session.commit()
             flash('Book-level content and subject detected.')
@@ -368,13 +367,5 @@ def deep_dive_content(chapter_id):
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
 # --- Main Execution ---
-def create_tables():
-    with app.app_context():
-        # This will create the database and tables if they don't exist
-        # and apply any pending migrations.
-        from flask_migrate import upgrade
-        upgrade()
-
 if __name__ == '__main__':
-    create_tables()
     app.run(debug=True)
