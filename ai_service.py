@@ -1,7 +1,10 @@
 import os
 import json
 import re
+import time
+import functools
 import google.generativeai as genai
+from google.generativeai.types import generation_types
 from pathlib import Path
 from pdf_utils import trim_pdf, cleanup_temp_file
 
@@ -33,61 +36,45 @@ def _clean_json_response(text):
     match = re.search(r'```(json)?(.*)```', text, re.DOTALL)
     return match.group(2).strip() if match else text.strip()
 
+def retry_on_rate_limit(max_retries=3):
+    """A decorator to handle API rate limit errors with exponential backoff."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except generation_types.RateLimitError as e:
+                    retries += 1
+                    if retries >= max_retries:
+                        raise e
+
+                    delay_match = re.search(r'retry_delay {\s*seconds: (\d+)\s*}', str(e))
+                    if delay_match:
+                        wait_time = int(delay_match.group(1)) + 1
+                    else:
+                        wait_time = (2 ** retries)
+
+                    print(f"Rate limit exceeded. Retrying in {wait_time} seconds... (Attempt {retries}/{max_retries})")
+                    time.sleep(wait_time)
+            return None
+        return wrapper
+    return decorator
+
 def _create_pdf_part(filepath):
-    """Creates a dictionary for file data to be used in the API request."""
-    return {
-        'mime_type': 'application/pdf',
-        'data': Path(filepath).read_bytes()
-    }
+    return {'mime_type': 'application/pdf', 'data': Path(filepath).read_bytes()}
 
 # --- Main Service Functions ---
 
+@retry_on_rate_limit()
 def get_user_context_summary(profile_data):
     prompt = _load_prompt('generate_user_context.txt', **profile_data)
     if not prompt: return None
     response = flash_model.generate_content(prompt)
     return response.text
 
-def process_new_book(filepath, original_filename, user_context_text):
-    """
-    Orchestrates the entire initial processing for a new book,
-    including chapter detection, overview generation for each chapter,
-    and book-level content generation.
-    """
-    # 1. Get chapter list from the full PDF
-    chapter_list_data = get_book_chapter_list(filepath, original_filename)
-    if not chapter_list_data or 'chapters' not in chapter_list_data:
-        raise Exception("AI service failed to return a valid chapter list.")
-
-    # 2. Generate overview for each chapter using trimmed PDFs
-    all_chapter_titles = [ch.get('title', '') for ch in chapter_list_data['chapters']]
-    for chapter_data in chapter_list_data['chapters']:
-        trimmed_filepath = None
-        try:
-            trimmed_filepath = trim_pdf(filepath, chapter_data.get('page_range'))
-            if not trimmed_filepath: continue
-
-            overview_html = get_overview_for_trimmed_chapter(
-                trimmed_filepath, chapter_data['title'], user_context_text, all_chapter_titles
-            )
-            chapter_data['simplified_html_content'] = overview_html or "<p>Content generation failed.</p>"
-        finally:
-            if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
-
-    # 3. Generate Book-Level Content and Subject (using full PDF)
-    book_subject = detect_subject_from_book(filepath)
-    book_preface = get_book_preface(filepath)
-    book_summary = get_book_summary(filepath)
-    book_context = get_book_context(filepath)
-
-    return {
-        "chapters": chapter_list_data['chapters'],
-        "subject": book_subject,
-        "preface": book_preface,
-        "summary": book_summary,
-        "context": book_context
-    }
-
+@retry_on_rate_limit()
 def get_book_chapter_list(filepath, original_filename):
     prompt = _load_prompt('get_chapter_list.txt', original_filename=original_filename)
     if not prompt: return None
@@ -95,6 +82,7 @@ def get_book_chapter_list(filepath, original_filename):
     response = pro_model.generate_content([prompt, pdf_part])
     return json.loads(_clean_json_response(response.text))
 
+@retry_on_rate_limit()
 def get_overview_for_trimmed_chapter(trimmed_filepath, chapter_title, user_context_text, all_chapter_titles):
     context_prompt_addition = f"The book's chapters are: {', '.join(all_chapter_titles)}."
     if user_context_text:
@@ -105,6 +93,7 @@ def get_overview_for_trimmed_chapter(trimmed_filepath, chapter_title, user_conte
     response = pro_model.generate_content([prompt, pdf_part])
     return response.text
 
+@retry_on_rate_limit()
 def detect_subject_from_book(filepath):
     prompt = _load_prompt('detect_book_subject.txt')
     if not prompt: return "General Studies"
@@ -112,12 +101,14 @@ def detect_subject_from_book(filepath):
     response = flash_model.generate_content([prompt, pdf_part])
     return response.text.strip()
 
+@retry_on_rate_limit()
 def get_course_context(course_name, provider):
     prompt = _load_prompt('generate_course_context.txt', course_name=course_name, provider=provider or "Not specified")
     if not prompt: return None
     response = flash_model.generate_content(prompt)
     return json.loads(_clean_json_response(response.text))
 
+@retry_on_rate_limit()
 def get_book_preface(filepath):
     prompt = _load_prompt('generate_book_preface.txt')
     if not prompt: return None
@@ -125,6 +116,7 @@ def get_book_preface(filepath):
     response = pro_model.generate_content([prompt, pdf_part])
     return response.text
 
+@retry_on_rate_limit()
 def get_book_summary(filepath):
     prompt = _load_prompt('generate_book_summary.txt')
     if not prompt: return None
@@ -132,6 +124,7 @@ def get_book_summary(filepath):
     response = pro_model.generate_content([prompt, pdf_part])
     return response.text
 
+@retry_on_rate_limit()
 def get_book_context(filepath):
     prompt = _load_prompt('generate_book_context.txt')
     if not prompt: return None
@@ -139,6 +132,7 @@ def get_book_context(filepath):
     response = pro_model.generate_content([prompt, pdf_part])
     return json.loads(_clean_json_response(response.text))
 
+@retry_on_rate_limit()
 def get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db):
     original_filepath = os.path.join('uploads', book.filename)
     trimmed_filepath = None
@@ -146,10 +140,8 @@ def get_deep_dive_content(chapter, book, user_context, course_context_db, book_c
         if not chapter.page_range: raise Exception("Cannot perform deep dive without a page range.")
         trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
         if not trimmed_filepath: raise Exception("Failed to trim PDF for deep dive.")
-
         pdf_part = _create_pdf_part(trimmed_filepath)
 
-        # Step 1: Generate initial deep dive
         user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
         course_context_prompt = f"COURSE CONTEXT: Subject: {course_context_db.subject_analysis if course_context_db else 'N/A'}."
         book_context_prompt = f"BOOK CONTEXT: Themes: {book_context_db.themes if book_context_db else 'N/A'}."
@@ -160,12 +152,10 @@ def get_deep_dive_content(chapter, book, user_context, course_context_db, book_c
         initial_response = pro_model.generate_content([initial_prompt, pdf_part], generation_config=generation_config)
         initial_ai_content = initial_response.text
 
-        # Step 2: Extract original text
         text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
         original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
         original_chapter_text = original_text_response.text
 
-        # Step 3: Refine content
         refinement_prompt = _load_prompt('refine_deep_dive.txt', original_chapter_text=original_chapter_text, initial_ai_content=initial_ai_content)
         if not refinement_prompt: raise Exception("Could not load refinement prompt.")
 
@@ -174,6 +164,7 @@ def get_deep_dive_content(chapter, book, user_context, course_context_db, book_c
     finally:
         if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
 
+@retry_on_rate_limit()
 def get_assessment_for_chapter(chapter, book):
     content_to_assess = ""
     trimmed_filepath = None
@@ -186,7 +177,6 @@ def get_assessment_for_chapter(chapter, book):
             original_filepath = os.path.join('uploads', book.filename)
             trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
             if not trimmed_filepath: raise Exception("Failed to trim PDF for assessment generation.")
-
             pdf_part = _create_pdf_part(trimmed_filepath)
             text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
             original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
@@ -200,12 +190,14 @@ def get_assessment_for_chapter(chapter, book):
     finally:
         if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
 
+@retry_on_rate_limit()
 def get_flashcards_for_chapter(chapter_content):
     prompt = _load_prompt('generate_flashcards.txt', chapter_content=chapter_content)
     if not prompt: return None
     response = pro_model.generate_content(prompt)
     return json.loads(_clean_json_response(response.text))
 
+@retry_on_rate_limit()
 def get_mind_map_for_chapter(chapter_content):
     prompt = _load_prompt('generate_mind_map.txt', chapter_content=chapter_content)
     if not prompt: return None
