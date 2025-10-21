@@ -1,9 +1,7 @@
 import os
 import json
 import re
-import base64
 import google.generativeai as genai
-from google.generativeai.types import Part
 from pathlib import Path
 from pdf_utils import trim_pdf, cleanup_temp_file
 
@@ -18,44 +16,77 @@ if not GEMINI_API_KEY:
 else:
     genai.configure(api_key=GEMINI_API_KEY)
 
-# Initialize models to be used by the service functions
+# Initialize models
 pro_model = genai.GenerativeModel(GEMINI_PRO_MODEL)
 flash_model = genai.GenerativeModel(GEMINI_FLASH_MODEL)
 
 # --- Helper Functions ---
 def _load_prompt(prompt_name, **kwargs):
-    """Loads a prompt from the prompts directory and formats it."""
     try:
         with open(PROMPTS_DIR / prompt_name, 'r') as f:
-            prompt_template = f.read()
-        return prompt_template.format(**kwargs)
-    except FileNotFoundError:
-        print(f"ERROR: Prompt file not found: {prompt_name}")
-        return None
-    except KeyError as e:
-        print(f"ERROR: Missing placeholder in prompt {prompt_name}: {e}")
+            return f.read().format(**kwargs)
+    except (FileNotFoundError, KeyError) as e:
+        print(f"Error loading prompt {prompt_name}: {e}")
         return None
 
 def _clean_json_response(text):
-    """Extracts a JSON object from a string, removing markdown code blocks."""
     match = re.search(r'```(json)?(.*)```', text, re.DOTALL)
-    if match:
-        return match.group(2).strip()
-    return text.strip()
+    return match.group(2).strip() if match else text.strip()
 
 def _create_pdf_part(filepath):
-    """Reads a PDF file and creates a genai.Part object for API requests."""
-    with open(filepath, 'rb') as f:
-        pdf_data = f.read()
-    return genai.Part(inline_data=pdf_data, mime_type='application/pdf')
+    """Creates a dictionary for file data to be used in the API request."""
+    return {
+        'mime_type': 'application/pdf',
+        'data': Path(filepath).read_bytes()
+    }
 
-# --- Service Functions ---
+# --- Main Service Functions ---
 
 def get_user_context_summary(profile_data):
     prompt = _load_prompt('generate_user_context.txt', **profile_data)
     if not prompt: return None
     response = flash_model.generate_content(prompt)
     return response.text
+
+def process_new_book(filepath, original_filename, user_context_text):
+    """
+    Orchestrates the entire initial processing for a new book,
+    including chapter detection, overview generation for each chapter,
+    and book-level content generation.
+    """
+    # 1. Get chapter list from the full PDF
+    chapter_list_data = get_book_chapter_list(filepath, original_filename)
+    if not chapter_list_data or 'chapters' not in chapter_list_data:
+        raise Exception("AI service failed to return a valid chapter list.")
+
+    # 2. Generate overview for each chapter using trimmed PDFs
+    all_chapter_titles = [ch.get('title', '') for ch in chapter_list_data['chapters']]
+    for chapter_data in chapter_list_data['chapters']:
+        trimmed_filepath = None
+        try:
+            trimmed_filepath = trim_pdf(filepath, chapter_data.get('page_range'))
+            if not trimmed_filepath: continue
+
+            overview_html = get_overview_for_trimmed_chapter(
+                trimmed_filepath, chapter_data['title'], user_context_text, all_chapter_titles
+            )
+            chapter_data['simplified_html_content'] = overview_html or "<p>Content generation failed.</p>"
+        finally:
+            if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
+
+    # 3. Generate Book-Level Content and Subject (using full PDF)
+    book_subject = detect_subject_from_book(filepath)
+    book_preface = get_book_preface(filepath)
+    book_summary = get_book_summary(filepath)
+    book_context = get_book_context(filepath)
+
+    return {
+        "chapters": chapter_list_data['chapters'],
+        "subject": book_subject,
+        "preface": book_preface,
+        "summary": book_summary,
+        "context": book_context
+    }
 
 def get_book_chapter_list(filepath, original_filename):
     prompt = _load_prompt('get_chapter_list.txt', original_filename=original_filename)
