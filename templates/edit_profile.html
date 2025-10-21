@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile{% endblock %}
+
+{% block content %}
+    <h2>Edit Your Learning Profile</h2>
+    <p>Your answers will help the AI tailor content specifically for you.</p>
+
+    <form method="POST" action="{{ url_for('edit_profile') }}">
+        <div>
+            <label for="academic_level">Academic Level</label>
+            <select name="academic_level" required>
+                <option value="beginner" {% if user_context and user_context.academic_level == 'beginner' %}selected{% endif %}>Beginner</option>
+                <option value="intermediate" {% if user_context and user_context.academic_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                <option value="advanced" {% if user_context and user_context.academic_level == 'advanced' %}selected{% endif %}>Advanced</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="interests">Subject Interests</label>
+            <textarea name="interests" rows="3" placeholder="e.g., engineering, economics, history of science">{{ user_context.interests or '' }}</textarea>
+        </div>
+
+        <div>
+            <label for="learning_style">Preferred Learning Style</label>
+            <select name="learning_style" required>
+                <option value="visual" {% if user_context and user_context.learning_style == 'visual' %}selected{% endif %}>Visual (diagrams, charts)</option>
+                <option value="text-heavy" {% if user_context and user_context.learning_style == 'text-heavy' %}selected{% endif %}>Text-heavy (detailed explanations)</option>
+                <option value="examples-focused" {% if user_context and user_context.learning_style == 'examples-focused' %}selected{% endif %}>Examples-focused (case studies, practical problems)</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="location">Location (for cultural context)</label>
+            <input type="text" name="location" value="{{ user_context.location or '' }}" placeholder="e.g., India, United States">
+        </div>
+
+        <div>
+            <label for="explanation_style">Preferred Explanation Style</label>
+            <select name="explanation_style" required>
+                <option value="conversational" {% if user_context and user_context.explanation_style == 'conversational' %}selected{% endif %}>Conversational</option>
+                <option value="formal" {% if user_context and user_context.explanation_style == 'formal' %}selected{% endif %}>Formal</option>
+                <option value="technical" {% if user_context and user_context.explanation_style == 'technical' %}selected{% endif %}>Technical</option>
+            </select>
+        </div>
+
+        <button type="submit">Save Profile</button>
+    </form>
+
+    <p><a href="{{ url_for('profile') }}">Cancel</a></p>
+{% endblock %}

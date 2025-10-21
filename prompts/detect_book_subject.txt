@@ -1,0 +1,6 @@
+Carefully read the main title, cover page, and major headings of the provided textbook PDF. Based on this information, determine the most specific and accurate subject name for the book.
+
+- **Prioritize Specificity:** If the book is titled "Advanced Macroeconomics," the subject is "Advanced Macroeconomics," not just "Economics."
+- **Return Only the Subject Name:** Your output should be a single string containing only the subject name. Do not add any explanation or introductory text.
+
+For example, if the title is "A Comprehensive Guide to Organic Chemistry," return "Organic Chemistry".

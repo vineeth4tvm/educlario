@@ -1,0 +1,18 @@
+Analyze the following academic course to generate a context for learning.
+
+- Course Name: {course_name}
+- Provider/University: {provider}
+
+Return a JSON object with the following keys:
+- "subject_analysis": A brief analysis of the academic subject.
+- "prerequisites": A list of likely prerequisite knowledge or courses.
+- "real_world_apps": A list of real-world applications for this subject.
+- "cultural_connections": For subjects where it's relevant, suggest connections to Indian culture or examples.
+
+Example:
+{{
+  "subject_analysis": "A foundational course in microeconomics, focusing on supply, demand, and market structures.",
+  "prerequisites": ["Basic algebra", "Introductory calculus"],
+  "real_world_apps": ["Business pricing strategies", "Public policy analysis"],
+  "cultural_connections": ["Relate market dynamics to local Indian bazaars or demonetization effects."]
+}}

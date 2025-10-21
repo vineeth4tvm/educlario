@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Create a New Course{% endblock %}
+
+{% block content %}
+    <h2>Create a New Course</h2>
+    <p>Organize your books by creating courses. A course can represent a subject, a semester, or any other grouping you like.</p>
+
+    <form method="POST" action="{{ url_for('create_course') }}">
+        <div>
+            <label for="name">Course Name</label>
+            <input type="text" name="name" required placeholder="e.g., Economics 101, Fall Semester">
+        </div>
+        <div>
+            <label for="provider">Provider / University (Optional)</label>
+            <input type="text" name="provider" placeholder="e.g., Harvard University">
+        </div>
+        <button type="submit">Create Course</button>
+    </form>
+
+    <p><a href="{{ url_for('dashboard') }}">Back to Dashboard</a></p>
+{% endblock %}

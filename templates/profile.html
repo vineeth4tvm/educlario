@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+    <h2>My Learning Profile</h2>
+    <p>This information helps us personalize the content for you.</p>
+
+    {% if user_context %}
+        <div>
+            <h4>Academic Level:</h4>
+            <p>{{ user_context.academic_level or 'Not set' }}</p>
+        </div>
+        <div>
+            <h4>Subject Interests:</h4>
+            <p>{{ user_context.interests or 'Not set' }}</p>
+        </div>
+        <div>
+            <h4>Preferred Learning Style:</h4>
+            <p>{{ user_context.learning_style or 'Not set' }}</p>
+        </div>
+        <div>
+            <h4>Location (for cultural context):</h4>
+            <p>{{ user_context.location or 'Not set' }}</p>
+        </div>
+        <div>
+            <h4>Preferred Explanation Style:</h4>
+            <p>{{ user_context.explanation_style or 'Not set' }}</p>
+        </div>
+        <hr>
+        <div>
+            <h4>AI-Generated Context Summary:</h4>
+            {% if user_context.generated_context_text %}
+                <p><em>{{ user_context.generated_context_text }}</em></p>
+            {% else %}
+                <p>Your personalized learning context has not been generated yet. Please fill out your profile.</p>
+            {% endif %}
+        </div>
+    {% else %}
+        <p>You have not set up your learning profile yet.</p>
+    {% endif %}
+
+    <hr>
+    <a href="{{ url_for('edit_profile') }}">Edit Profile</a> |
+    <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+{% endblock %}

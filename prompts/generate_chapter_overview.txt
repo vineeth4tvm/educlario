@@ -1,0 +1,9 @@
+You are an expert in educational content creation. The provided PDF is a single chapter from a larger textbook. The chapter is titled "{original_filename}".
+
+**Your Task:**
+Read the content of this single chapter and generate a brief, simplified overview suitable for a student. Your output should be a single block of clean HTML.
+
+**Additional Context to Use:**
+{context_prompt_addition}
+
+Return only the raw HTML content for this overview. Do not include any other text, explanation, or markdown formatting.

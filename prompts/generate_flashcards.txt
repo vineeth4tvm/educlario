@@ -1,0 +1,27 @@
+You are an expert in creating study materials. Based on the following chapter content, generate a set of 15-20 flashcards to help a student learn the key concepts.
+
+**Chapter Content:**
+---
+{chapter_content}
+---
+
+**Instructions:**
+Generate a JSON object containing a list named "flashcards". Each item in the list should be an object with two keys: "front" and "back".
+- The "front" should contain a key term, concept, or question.
+- The "back" should contain its corresponding definition, explanation, or answer.
+
+The final JSON object should follow this exact structure:
+{{
+  "flashcards": [
+    {{
+      "front": "What is the principle of supply and demand?",
+      "back": "It is an economic model that determines price in a market. It states that, all else being equal, in a competitive market, the unit price for a particular good will vary until it settles at a point where the quantity demanded equals the quantity supplied."
+    }},
+    {{
+      "front": "Elasticity",
+      "back": "A measure of the responsiveness of quantity demanded or quantity supplied to a change in one of its determinants, such as price."
+    }}
+  ]
+}}
+
+Ensure the entire output is a single, valid JSON object without any other text or markdown.

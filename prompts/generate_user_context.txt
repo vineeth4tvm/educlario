@@ -1,0 +1,11 @@
+Based on the following user profile, generate a concise, one-paragraph summary of their personalized learning context. This summary will guide the content generation AI.
+
+- Academic Level: {academic_level}
+- Subject Interests: {interests}
+- Preferred Learning Style: {learning_style}
+- Location for Context: {location}
+- Preferred Explanation Style: {explanation_style}
+
+Example Output: "The user is an intermediate learner from India, interested in engineering. They prefer content with practical examples and a conversational tone."
+
+Generate the summary now:
