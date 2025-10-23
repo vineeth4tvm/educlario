@@ -9,21 +9,24 @@
     <hr>
 
     <div class="generated-content">
-        {% if content and content.rich_html_content %}
-            {# Display the rich, deep-dive content if it exists #}
+        {% if content and 'Content generation is pending' in content.html_content %}
+            <p>The overview for this chapter has not been generated yet.</p>
+            <form method="POST" action="{{ url_for('generate_overview', chapter_id=chapter.id) }}">
+                <button type="submit">Generate Overview</button>
+            </form>
+        {% elif content and content.rich_html_content %}
             {{ content.rich_html_content|safe }}
         {% elif content %}
-            {# Otherwise, display the initial overview content #}
             {{ content.html_content|safe }}
         {% else %}
-            <p>Content is still being generated or was not found for this chapter. Please check back later.</p>
+            <p>No content record found for this chapter.</p>
         {% endif %}
     </div>
 
     <hr>
 
-    {# The "Dive Deeper" button dynamically changes its text and function #}
-    {% if content %}
+    {# The "Dive Deeper" button only shows if there is overview content to dive into #}
+    {% if content and 'Content generation is pending' not in content.html_content %}
     <div>
         <form method="POST" action="{{ url_for('deep_dive_content', chapter_id=chapter.id) }}" style="display: inline;">
             {% if content.rich_html_content %}

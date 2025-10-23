@@ -216,27 +216,27 @@ def upload_book():
         flash(f'Book "{original_filename}" uploaded. Processing with AI...')
 
         try:
-            user_context = UserContext.query.filter_by(user_id=current_user.id).first()
-            user_context_text = user_context.generated_context_text if user_context else ""
+            # 1. Get chapter list and save them
+            chapter_list_data = ai_service.get_book_chapter_list(filepath, original_filename)
+            if not chapter_list_data or 'chapters' not in chapter_list_data:
+                raise Exception("AI service failed to return a valid chapter list.")
 
-            # Make a single, high-level call to the AI service to process the book
-            processed_data = ai_service.process_new_book(filepath, original_filename, user_context_text)
-
-            # Save the results to the database
-            new_book.subject = processed_data.get('subject')
-            db.session.add(BookPreface(book_id=new_book.id, html_content=processed_data.get('preface')))
-            db.session.add(BookSummary(book_id=new_book.id, html_content=processed_data.get('summary')))
-            context_data = processed_data.get('context', {})
-            db.session.add(BookContext(book_id=new_book.id, themes=json.dumps(context_data.get('themes')), structure=context_data.get('structure'), complexity_map=context_data.get('complexity_map')))
-
-            for chapter_data in processed_data.get('chapters', []):
+            for chapter_data in chapter_list_data['chapters']:
                 new_chapter = Chapter(book_id=new_book.id, chapter_number=chapter_data.get('chapter_number'), title=chapter_data.get('title'), page_range=chapter_data.get('page_range'))
                 db.session.add(new_chapter)
-                db.session.commit()
-                db.session.add(GeneratedContent(chapter_id=new_chapter.id, html_content=chapter_data.get('simplified_html_content', '<p>Content not available.</p>')))
+                # Create a placeholder content record
+                db.session.flush() # Flush to get the new_chapter.id
+                db.session.add(GeneratedContent(chapter_id=new_chapter.id, html_content="<p>Overview content has not been generated yet.</p>"))
+
+            # 2. Generate Book-Level Content and Subject (using full PDF)
+            new_book.subject = ai_service.detect_subject_from_book(filepath)
+            db.session.add(BookPreface(book_id=new_book.id, html_content=ai_service.get_book_preface(filepath)))
+            db.session.add(BookSummary(book_id=new_book.id, html_content=ai_service.get_book_summary(filepath)))
+            context_data = ai_service.get_book_context(filepath)
+            db.session.add(BookContext(book_id=new_book.id, themes=json.dumps(context_data.get('themes')), structure=context_data.get('structure'), complexity_map=context_data.get('complexity_map')))
 
             db.session.commit()
-            flash('Your new book has been fully processed!')
+            flash('Your new book has been processed!')
 
         except Exception as e:
             db.session.rollback()
@@ -326,6 +326,46 @@ def generate_assessment(chapter_id):
         flash(f"An error occurred during assessment generation: {e}")
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
+@app.route('/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
+@login_required
+def generate_overview(chapter_id):
+    chapter = Chapter.query.get_or_404(chapter_id)
+    if chapter.book.user_id != current_user.id:
+        flash("You do not have permission to modify this content.")
+        return redirect(url_for('dashboard'))
+
+    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
+    if not content_record:
+        flash("Cannot generate overview as no content record exists.")
+        return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
+    try:
+        user_context = UserContext.query.filter_by(user_id=current_user.id).first()
+        user_context_text = user_context.generated_context_text if user_context else ""
+
+        all_chapter_titles = [c.title for c in chapter.book.chapters]
+
+        trimmed_filepath = None
+        try:
+            trimmed_filepath = pdf_utils.trim_pdf(os.path.join(app.config['UPLOAD_FOLDER'], chapter.book.filename), chapter.page_range)
+            if not trimmed_filepath:
+                raise Exception("Failed to trim PDF for overview generation.")
+
+            overview_html = ai_service.get_overview_for_trimmed_chapter(
+                trimmed_filepath, chapter.title, user_context_text, all_chapter_titles
+            )
+            content_record.html_content = overview_html or "<p>Content generation failed.</p>"
+            db.session.commit()
+            flash("Chapter overview generated successfully!")
+        finally:
+            if trimmed_filepath:
+                pdf_utils.cleanup_temp_file(trimmed_filepath)
+
+    except Exception as e:
+        flash(f"An error occurred during overview generation: {e}")
+
+    return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
 @app.route('/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
 @login_required
 def deep_dive_content(chapter_id):
@@ -352,5 +392,11 @@ def deep_dive_content(chapter_id):
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
 # --- Main Execution ---
+def create_tables():
+    with app.app_context():
+        from flask_migrate import upgrade
+        upgrade()
+
 if __name__ == '__main__':
+    create_tables()
     app.run(debug=True)
