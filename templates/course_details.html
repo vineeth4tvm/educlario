@@ -21,37 +21,37 @@
     <hr>
 
     <h3>Semesters & Books</h3>
-    {% if course.semesters %}
-        {% for semester in course.semesters | sort(attribute='name') %}
-            <h4>{{ semester.name }}</h4>
-            {% set books_in_semester = semester.books | list %}
-            {% if books_in_semester %}
-                <ul>
-                    {% for book in books_in_semester %}
-                        <li>
-                            <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
-                            (<em>Subject: {{ book.subject or 'N/A' }}</em>)
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No books have been added to this semester yet.</p>
-            {% endif %}
-        {% endfor %}
-    {% else %}
+    {% for semester in course.semesters | sort(attribute='name') %}
+        <h4>{{ semester.name }}</h4>
+        {% set semester_books = books | selectattr('semester_id', 'equalto', semester.id) | list %}
+        {% if semester_books %}
+            <ul>
+                {% for book in semester_books %}
+                    <li>
+                        <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
+                        (<em>Subject: {{ book.subject or 'N/A' }}</em>)
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No books have been added to this semester yet.</p>
+        {% endif %}
+    {% endfor %}
+
+    {% if not course.semesters %}
         <p>No semesters have been created for this course yet.</p>
     {% endif %}
 
     <hr>
 
     <h4>Books Not in a Semester</h4>
-    {% set books_without_semester = course.books | selectattr('semester_id', 'none') | list %}
+    {% set books_without_semester = books | selectattr('semester_id', 'none') | list %}
     {% if books_without_semester %}
         <ul>
             {% for book in books_without_semester %}
                 <li>
                     <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
-                     (<em>Subject: {{ book.subject or 'N/A' }}</em>)
+                    (<em>Subject: {{ book.subject or 'N/A' }}</em>)
                 </li>
             {% endfor %}
         </ul>
