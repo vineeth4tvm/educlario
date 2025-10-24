@@ -37,7 +37,6 @@ def _clean_json_response(text):
     return match.group(2).strip() if match else text.strip()
 
 def retry_on_rate_limit(max_retries=3):
-    """A decorator to handle API rate limit errors with exponential backoff."""
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -47,16 +46,10 @@ def retry_on_rate_limit(max_retries=3):
                     return func(*args, **kwargs)
                 except generation_types.RateLimitError as e:
                     retries += 1
-                    if retries >= max_retries:
-                        raise e
-
+                    if retries >= max_retries: raise e
                     delay_match = re.search(r'retry_delay {\s*seconds: (\d+)\s*}', str(e))
-                    if delay_match:
-                        wait_time = int(delay_match.group(1)) + 1
-                    else:
-                        wait_time = (2 ** retries)
-
-                    print(f"Rate limit exceeded. Retrying in {wait_time} seconds... (Attempt {retries}/{max_retries})")
+                    wait_time = int(delay_match.group(1)) + 1 if delay_match else (2 ** retries)
+                    print(f"Rate limit exceeded. Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
             return None
         return wrapper
@@ -66,7 +59,6 @@ def _create_pdf_part(filepath):
     return {'mime_type': 'application/pdf', 'data': Path(filepath).read_bytes()}
 
 # --- Main Service Functions ---
-
 @retry_on_rate_limit()
 def get_user_context_summary(profile_data):
     prompt = _load_prompt('generate_user_context.txt', **profile_data)
@@ -84,10 +76,10 @@ def get_book_chapter_list(filepath, original_filename):
 
 @retry_on_rate_limit()
 def get_overview_for_trimmed_chapter(trimmed_filepath, chapter_title, user_context_text, all_chapter_titles):
-    context_prompt_addition = f"The book's chapters are: {', '.join(all_chapter_titles)}."
+    context_prompt_addition = f"For context, the book's chapters are: {', '.join(all_chapter_titles)}."
     if user_context_text:
         context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
-    prompt = _load_prompt('generate_chapter_overview.txt', original_filename=chapter_title, context_prompt_addition=context_prompt_addition)
+    prompt = _load_prompt('generate_chapter_overview.txt', chapter_title=chapter_title, context_prompt_addition=context_prompt_addition)
     if not prompt: return None
     pdf_part = _create_pdf_part(trimmed_filepath)
     response = pro_model.generate_content([prompt, pdf_part])
@@ -166,21 +158,17 @@ def get_deep_dive_content(chapter, book, user_context, course_context_db, book_c
 
 @retry_on_rate_limit()
 def get_assessment_for_chapter(chapter, book):
-    content_to_assess = ""
     trimmed_filepath = None
     try:
-        content_record = chapter.generated_content
-        if content_record and content_record.rich_html_content:
-            content_to_assess = content_record.rich_html_content
-        else:
-            if not chapter.page_range: raise Exception("Cannot generate assessment without a page range.")
-            original_filepath = os.path.join('uploads', book.filename)
-            trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
-            if not trimmed_filepath: raise Exception("Failed to trim PDF for assessment generation.")
-            pdf_part = _create_pdf_part(trimmed_filepath)
-            text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
-            original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
-            content_to_assess = original_text_response.text
+        if not chapter.page_range: raise Exception("Cannot generate assessment without a page range.")
+        original_filepath = os.path.join('uploads', book.filename)
+        trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+        if not trimmed_filepath: raise Exception("Failed to trim PDF for assessment generation.")
+
+        pdf_part = _create_pdf_part(trimmed_filepath)
+        text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
+        original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
+        content_to_assess = original_text_response.text
 
         prompt = _load_prompt('generate_assessment.txt', chapter_content=content_to_assess)
         if not prompt: return None
@@ -191,15 +179,49 @@ def get_assessment_for_chapter(chapter, book):
         if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
 
 @retry_on_rate_limit()
-def get_flashcards_for_chapter(chapter_content):
-    prompt = _load_prompt('generate_flashcards.txt', chapter_content=chapter_content)
-    if not prompt: return None
-    response = pro_model.generate_content(prompt)
-    return json.loads(_clean_json_response(response.text))
+def get_flashcards_for_chapter(chapter, book, user_context):
+    trimmed_filepath = None
+    try:
+        if not chapter.page_range: raise Exception("Cannot generate flashcards without a page range.")
+        original_filepath = os.path.join('uploads', book.filename)
+        trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+        if not trimmed_filepath: raise Exception("Failed to trim PDF for flashcard generation.")
+
+        pdf_part = _create_pdf_part(trimmed_filepath)
+        user_context_text = user_context.generated_context_text if user_context else ""
+        all_chapter_titles = [c.title for c in book.chapters]
+        context_prompt_addition = f"The book's chapters are: {', '.join(all_chapter_titles)}."
+        if user_context_text:
+            context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
+
+        prompt = _load_prompt('generate_flashcards.txt', chapter_title=chapter.title, context_prompt_addition=context_prompt_addition)
+        if not prompt: return None
+
+        response = pro_model.generate_content([prompt, pdf_part])
+        return json.loads(_clean_json_response(response.text))
+    finally:
+        if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
 
 @retry_on_rate_limit()
-def get_mind_map_for_chapter(chapter_content):
-    prompt = _load_prompt('generate_mind_map.txt', chapter_content=chapter_content)
-    if not prompt: return None
-    response = pro_model.generate_content(prompt)
-    return json.loads(_clean_json_response(response.text))
+def get_mind_map_for_chapter(chapter, book, user_context):
+    trimmed_filepath = None
+    try:
+        if not chapter.page_range: raise Exception("Cannot generate mind map without a page range.")
+        original_filepath = os.path.join('uploads', book.filename)
+        trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+        if not trimmed_filepath: raise Exception("Failed to trim PDF for mind map generation.")
+
+        pdf_part = _create_pdf_part(trimmed_filepath)
+        user_context_text = user_context.generated_context_text if user_context else ""
+        all_chapter_titles = [c.title for c in book.chapters]
+        context_prompt_addition = f"The book's chapters are: {', '.join(all_chapter_titles)}."
+        if user_context_text:
+            context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
+
+        prompt = _load_prompt('generate_mind_map.txt', chapter_title=chapter.title, context_prompt_addition=context_prompt_addition)
+        if not prompt: return None
+
+        response = pro_model.generate_content([prompt, pdf_part])
+        return json.loads(_clean_json_response(response.text))
+    finally:
+        if trimmed_filepath: cleanup_temp_file(trimmed_filepath)

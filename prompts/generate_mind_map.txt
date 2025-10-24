@@ -1,8 +1,8 @@
-You are an expert in conceptual analysis and structuring information. Based on the following chapter content, generate a mind map representing the key concepts and their relationships.
+You are an expert in conceptual analysis and structuring information. The provided PDF is a single chapter titled "{chapter_title}". Based on its content, generate a mind map representing the key concepts and their relationships.
 
-**Chapter Content:**
+**Additional Context for personalization:**
 ---
-{chapter_content}
+{context_prompt_addition}
 ---
 
 **Instructions:**

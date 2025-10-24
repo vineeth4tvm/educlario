@@ -1,8 +1,8 @@
-You are an expert in creating study materials. Based on the following chapter content, generate a set of 15-20 flashcards to help a student learn the key concepts.
+You are an expert in creating study materials. The provided PDF is a single chapter titled "{chapter_title}". Based on its content, generate a set of 15-20 flashcards to help a student learn the key concepts.
 
-**Chapter Content:**
+**Additional Context for personalization:**
 ---
-{chapter_content}
+{context_prompt_addition}
 ---
 
 **Instructions:**

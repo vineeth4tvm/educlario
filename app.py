@@ -216,7 +216,6 @@ def upload_book():
         flash(f'Book "{original_filename}" uploaded. Processing with AI...')
 
         try:
-            # 1. Get chapter list and save them
             chapter_list_data = ai_service.get_book_chapter_list(filepath, original_filename)
             if not chapter_list_data or 'chapters' not in chapter_list_data:
                 raise Exception("AI service failed to return a valid chapter list.")
@@ -224,11 +223,9 @@ def upload_book():
             for chapter_data in chapter_list_data['chapters']:
                 new_chapter = Chapter(book_id=new_book.id, chapter_number=chapter_data.get('chapter_number'), title=chapter_data.get('title'), page_range=chapter_data.get('page_range'))
                 db.session.add(new_chapter)
-                # Create a placeholder content record
-                db.session.flush() # Flush to get the new_chapter.id
-                db.session.add(GeneratedContent(chapter_id=new_chapter.id, html_content="<p>Overview content has not been generated yet.</p>"))
+                db.session.flush()
+                db.session.add(GeneratedContent(chapter_id=new_chapter.id, html_content="<p>Content generation is pending. Click 'Generate Overview' to begin.</p>"))
 
-            # 2. Generate Book-Level Content and Subject (using full PDF)
             new_book.subject = ai_service.detect_subject_from_book(filepath)
             db.session.add(BookPreface(book_id=new_book.id, html_content=ai_service.get_book_preface(filepath)))
             db.session.add(BookSummary(book_id=new_book.id, html_content=ai_service.get_book_summary(filepath)))
@@ -264,10 +261,7 @@ def course_details(course_id):
     if course.user_id != current_user.id:
         flash("You do not have permission to view this course.")
         return redirect(url_for('dashboard'))
-
-    # Fetch all books for the course to be grouped in the template
     books = Book.query.filter_by(course_id=course.id).order_by(Book.semester_id, Book.original_name).all()
-
     return render_template('course_details.html', course=course, books=books)
 
 @app.route('/course/<int:course_id>/add_semester', methods=['POST'])
@@ -307,6 +301,79 @@ def chapter_view(chapter_id):
     content = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
     return render_template('chapter_view.html', chapter=chapter, content=content)
 
+@app.route('/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
+@login_required
+def generate_overview(chapter_id):
+    chapter = Chapter.query.get_or_404(chapter_id)
+    if chapter.book.user_id != current_user.id:
+        flash("You do not have permission to modify this content.")
+        return redirect(url_for('dashboard'))
+
+    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
+    if not content_record:
+        flash("Cannot generate overview as no content record exists.")
+        return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
+    try:
+        user_context = UserContext.query.filter_by(user_id=current_user.id).first()
+        user_context_text = user_context.generated_context_text if user_context else ""
+        all_chapter_titles = [c.title for c in chapter.book.chapters]
+
+        trimmed_filepath = None
+        try:
+            trimmed_filepath = pdf_utils.trim_pdf(os.path.join(app.config['UPLOAD_FOLDER'], chapter.book.filename), chapter.page_range)
+            if not trimmed_filepath:
+                raise Exception("Failed to trim PDF for overview generation.")
+
+            overview_html = ai_service.get_overview_for_trimmed_chapter(
+                trimmed_filepath, chapter.title, user_context_text, all_chapter_titles
+            )
+            content_record.html_content = overview_html or "<p>Content generation failed.</p>"
+            db.session.commit()
+            flash("Chapter overview generated successfully!")
+        finally:
+            if trimmed_filepath:
+                pdf_utils.cleanup_temp_file(trimmed_filepath)
+    except Exception as e:
+        flash(f"An error occurred during overview generation: {e}")
+
+    return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
+@app.route('/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
+@login_required
+def generate_study_aids(chapter_id):
+    chapter = Chapter.query.get_or_404(chapter_id)
+    if chapter.book.user_id != current_user.id:
+        flash("You do not have permission to modify this content.")
+        return redirect(url_for('dashboard'))
+
+    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
+    if not content_record or "Content generation is pending" in content_record.html_content:
+        flash("Please generate the chapter overview before creating study aids.")
+        return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
+    try:
+        user_context = UserContext.query.filter_by(user_id=current_user.id).first()
+        flashcards_json = ai_service.get_flashcards_for_chapter(chapter, chapter.book, user_context)
+        if flashcards_json:
+            content_record.flashcards_json = json.dumps(flashcards_json)
+            flash("Flashcards generated successfully!")
+        else:
+            flash("Failed to generate flashcards from AI service.")
+
+        mind_map_json = ai_service.get_mind_map_for_chapter(chapter, chapter.book, user_context)
+        if mind_map_json:
+            content_record.mind_map_json = json.dumps(mind_map_json)
+            flash("Mind map generated successfully!")
+        else:
+            flash("Failed to generate mind map from AI service.")
+
+        db.session.commit()
+    except Exception as e:
+        flash(f"An error occurred during study aid generation: {e}")
+
+    return redirect(url_for('chapter_view', chapter_id=chapter.id))
+
 @app.route('/chapter/<int:chapter_id>/generate_assessment', methods=['POST'])
 @login_required
 def generate_assessment(chapter_id):
@@ -328,83 +395,6 @@ def generate_assessment(chapter_id):
             flash("Failed to generate assessment from AI service.")
     except Exception as e:
         flash(f"An error occurred during assessment generation: {e}")
-    return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-@app.route('/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
-@login_required
-def generate_overview(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to modify this content.")
-        return redirect(url_for('dashboard'))
-
-    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-    if not content_record:
-        flash("Cannot generate overview as no content record exists.")
-        return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-    try:
-        user_context = UserContext.query.filter_by(user_id=current_user.id).first()
-        user_context_text = user_context.generated_context_text if user_context else ""
-
-        all_chapter_titles = [c.title for c in chapter.book.chapters]
-
-        trimmed_filepath = None
-        try:
-            trimmed_filepath = pdf_utils.trim_pdf(os.path.join(app.config['UPLOAD_FOLDER'], chapter.book.filename), chapter.page_range)
-            if not trimmed_filepath:
-                raise Exception("Failed to trim PDF for overview generation.")
-
-            overview_html = ai_service.get_overview_for_trimmed_chapter(
-                trimmed_filepath, chapter.title, user_context_text, all_chapter_titles
-            )
-            content_record.html_content = overview_html or "<p>Content generation failed.</p>"
-            db.session.commit()
-            flash("Chapter overview generated successfully!")
-        finally:
-            if trimmed_filepath:
-                pdf_utils.cleanup_temp_file(trimmed_filepath)
-
-    except Exception as e:
-        flash(f"An error occurred during overview generation: {e}")
-
-    return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-@app.route('/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
-@login_required
-def generate_study_aids(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to modify this content.")
-        return redirect(url_for('dashboard'))
-
-    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-    if not content_record:
-        flash("Cannot generate study aids as no content exists for this chapter.")
-        return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-    try:
-        content_to_process = content_record.rich_html_content or content_record.html_content
-
-        flashcards_json = ai_service.get_flashcards_for_chapter(content_to_process)
-        if flashcards_json:
-            content_record.flashcards_json = json.dumps(flashcards_json)
-            flash("Flashcards generated successfully!")
-        else:
-            flash("Failed to generate flashcards from AI service.")
-
-        mind_map_json = ai_service.get_mind_map_for_chapter(content_to_process)
-        if mind_map_json:
-            content_record.mind_map_json = json.dumps(mind_map_json)
-            flash("Mind map generated successfully!")
-        else:
-            flash("Failed to generate mind map from AI service.")
-
-        db.session.commit()
-
-    except Exception as e:
-        flash(f"An error occurred during study aid generation: {e}")
-
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
 @app.route('/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
