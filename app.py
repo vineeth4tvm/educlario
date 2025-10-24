@@ -264,7 +264,11 @@ def course_details(course_id):
     if course.user_id != current_user.id:
         flash("You do not have permission to view this course.")
         return redirect(url_for('dashboard'))
-    return render_template('course_details.html', course=course)
+
+    # Fetch all books for the course to be grouped in the template
+    books = Book.query.filter_by(course_id=course.id).order_by(Book.semester_id, Book.original_name).all()
+
+    return render_template('course_details.html', course=course, books=books)
 
 @app.route('/course/<int:course_id>/add_semester', methods=['POST'])
 @login_required
