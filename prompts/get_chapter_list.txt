@@ -8,16 +8,16 @@ For each chapter object, you MUST extract the following three keys:
 
 Example Output:
 [
-    {
+    {{
       "chapter_number": 1,
       "title": "Introduction to Microeconomics",
       "page_range": "1-22"
-    },
-    {
+    }},
+    {{
       "chapter_number": 2,
       "title": "Supply and Demand",
       "page_range": "23-45"
-    }
+    }}
 ]
 
 Return only the valid JSON array and nothing else. Do not wrap it in a parent object.
