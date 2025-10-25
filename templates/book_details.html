@@ -1,62 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}{{ course.name }}{% endblock %}
+{% block title %}{{ book.original_name }}{% endblock %}
 
 {% block content %}
-    <h2>{{ course.name }}</h2>
-    <p>{{ course.provider or 'No provider specified' }}</p>
-    <p><a href="{{ url_for('dashboard') }}">Back to Dashboard</a></p>
-
-    <hr>
-
-    <h3>Add a New Semester</h3>
-    <form method="POST" action="{{ url_for('add_semester', course_id=course.id) }}">
-        <div>
-            <label for="name">Semester Name</label>
-            <input type="text" name="name" required placeholder="e.g., Semester 1, Fall 2025">
-        </div>
-        <button type="submit">Add Semester</button>
-    </form>
-
-    <hr>
-
-    <h3>Semesters & Books</h3>
-    {% for semester in course.semesters | sort(attribute='name') %}
-        <h4>{{ semester.name }}</h4>
-        {% set semester_books = books | selectattr('semester_id', 'equalto', semester.id) | list %}
-        {% if semester_books %}
-            <ul>
-                {% for book in semester_books %}
-                    <li>
-                        <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
-                        (<em>Subject: {{ book.subject or 'N/A' }}</em>)
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>No books have been added to this semester yet.</p>
+    <h2><a href="{{ url_for('course_details', course_id=book.course_id) }}">{{ book.course.name }}</a> > {{ book.original_name }}</h2>
+    <p>
+        Uploaded: {{ book.uploaded_at.strftime('%Y-%m-%d %H:%M') }}<br>
+        {% if book.subject %}
+            <strong>Detected Subject:</strong> {{ book.subject }}
         {% endif %}
-    {% endfor %}
+    </p>
 
-    {% if not course.semesters %}
-        <p>No semesters have been created for this course yet.</p>
+    <hr>
+
+    {% if book.preface %}
+    <div class="book-preface">
+        <h3>Preface</h3>
+        {{ book.preface.html_content|safe }}
+    </div>
+    <hr>
     {% endif %}
 
-    <hr>
-
-    <h4>Books Not in a Semester</h4>
-    {% set books_without_semester = books | selectattr('semester_id', 'none') | list %}
-    {% if books_without_semester %}
+    <h3>Chapters</h3>
+    {% if chapters %}
         <ul>
-            {% for book in books_without_semester %}
+            {% for chapter in chapters %}
                 <li>
-                    <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a>
-                    (<em>Subject: {{ book.subject or 'N/A' }}</em>)
+                    <a href="{{ url_for('chapter_view', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">{{ chapter.title }}</a>
                 </li>
             {% endfor %}
         </ul>
     {% else %}
-        <p>All books in this course are organized into semesters.</p>
+        <p>No chapters found for this book. The AI may still be processing it, or there might have been an issue.</p>
     {% endif %}
 
+    <hr>
+
+    {% if book.summary %}
+    <div class="book-summary">
+        <h3>Summary & Key Applications</h3>
+        {{ book.summary.html_content|safe }}
+    </div>
+    <hr>
+    {% endif %}
+
+    <p><a href="{{ url_for('course_details', course_id=book.course_id) }}">Back to Course</a></p>
 {% endblock %}

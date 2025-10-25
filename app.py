@@ -43,17 +43,24 @@ def load_user(user_id):
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# --- Routes ---
+# --- Main Routes ---
 @app.route('/')
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     return render_template('index.html')
 
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    courses = Course.query.filter_by(user_id=current_user.id).order_by(Course.created_at.desc()).all()
+    standalone_books = Book.query.filter_by(user_id=current_user.id, course_id=None).order_by(Book.uploaded_at.desc()).all()
+    return render_template('dashboard.html', name=current_user.email, courses=courses, standalone_books=standalone_books)
+
+# --- Auth Routes ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+    if current_user.is_authenticated: return redirect(url_for('dashboard'))
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -71,8 +78,7 @@ def signup():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+    if current_user.is_authenticated: return redirect(url_for('dashboard'))
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -91,13 +97,7 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    courses = Course.query.filter_by(user_id=current_user.id).order_by(Course.created_at.desc()).all()
-    standalone_books = Book.query.filter_by(user_id=current_user.id, course_id=None).order_by(Book.uploaded_at.desc()).all()
-    return render_template('dashboard.html', name=current_user.email, courses=courses, standalone_books=standalone_books)
-
+# --- Profile Routes ---
 @app.route('/profile')
 @login_required
 def profile():
@@ -110,29 +110,22 @@ def edit_profile():
     user_context = UserContext.query.filter_by(user_id=current_user.id).first()
     if request.method == 'POST':
         profile_data = {
-            'academic_level': request.form.get('academic_level'),
-            'interests': request.form.get('interests'),
-            'learning_style': request.form.get('learning_style'),
-            'location': request.form.get('location'),
+            'academic_level': request.form.get('academic_level'), 'interests': request.form.get('interests'),
+            'learning_style': request.form.get('learning_style'), 'location': request.form.get('location'),
             'explanation_style': request.form.get('explanation_style')
         }
         if not user_context:
             user_context = UserContext(user_id=current_user.id)
             db.session.add(user_context)
 
-        user_context.academic_level = profile_data['academic_level']
-        user_context.interests = profile_data['interests']
-        user_context.learning_style = profile_data['learning_style']
-        user_context.location = profile_data['location']
-        user_context.explanation_style = profile_data['explanation_style']
+        for key, value in profile_data.items():
+            setattr(user_context, key, value)
 
         try:
             generated_text = ai_service.get_user_context_summary(profile_data)
             if generated_text:
                 user_context.generated_context_text = generated_text
                 flash('Successfully generated your personalized learning context.')
-            else:
-                flash('There was an issue generating the AI context.')
         except Exception as e:
             flash(f'Could not generate AI context: {e}')
 
@@ -141,6 +134,7 @@ def edit_profile():
         return redirect(url_for('profile'))
     return render_template('edit_profile.html', user_context=user_context)
 
+# --- Course and Book Routes ---
 @app.route('/create_course', methods=['GET', 'POST'])
 @login_required
 def create_course():
@@ -158,8 +152,7 @@ def create_course():
                 context_data = ai_service.get_course_context(name, provider)
                 if context_data:
                     new_context = CourseContext(
-                        course_id=new_course.id,
-                        subject_analysis=context_data.get('subject_analysis'),
+                        course_id=new_course.id, subject_analysis=context_data.get('subject_analysis'),
                         prerequisites=json.dumps(context_data.get('prerequisites')),
                         real_world_apps=json.dumps(context_data.get('real_world_apps')),
                         cultural_connections=json.dumps(context_data.get('cultural_connections'))
@@ -167,8 +160,6 @@ def create_course():
                     db.session.add(new_context)
                     db.session.commit()
                     flash('Course context generated successfully.')
-                else:
-                    flash('Could not generate course context.')
             except Exception as e:
                 flash(f'Could not generate AI course context: {e}')
             return redirect(url_for('dashboard'))
@@ -178,12 +169,10 @@ def create_course():
 @login_required
 def upload_book():
     if 'file' not in request.files:
-        flash('No file part')
-        return redirect(url_for('dashboard'))
+        flash('No file part'); return redirect(request.referrer or url_for('dashboard'))
     file = request.files['file']
     if file.filename == '':
-        flash('No selected file')
-        return redirect(url_for('dashboard'))
+        flash('No selected file'); return redirect(request.referrer or url_for('dashboard'))
     if file and file.filename.endswith('.pdf'):
         original_filename = secure_filename(file.filename)
         filename = f"{current_user.id}_{int(datetime.now().timestamp())}_{original_filename}"
@@ -193,22 +182,17 @@ def upload_book():
         course_id = request.form.get('course_id')
         semester_id = request.form.get('semester_id')
 
+        # Validation
         if course_id:
-            course_id = int(course_id)
             course = Course.query.filter_by(id=course_id, user_id=current_user.id).first()
             if not course:
-                flash("Invalid course selected.")
-                return redirect(url_for('dashboard'))
-        else:
-            course_id = None
+                flash("Invalid course selected."); return redirect(url_for('dashboard'))
+        else: course_id = None
         if semester_id:
-            semester_id = int(semester_id)
             semester = Semester.query.filter_by(id=semester_id, course_id=course_id).first()
             if not semester:
-                flash("Invalid semester selected for the chosen course.")
-                return redirect(url_for('dashboard'))
-        else:
-            semester_id = None
+                flash("Invalid semester for the chosen course."); return redirect(url_for('dashboard'))
+        else: semester_id = None
 
         new_book = Book(user_id=current_user.id, course_id=course_id, semester_id=semester_id, filename=filename, original_name=original_filename)
         db.session.add(new_book)
@@ -216,208 +200,131 @@ def upload_book():
         flash(f'Book "{original_filename}" uploaded. Processing with AI...')
 
         try:
-            chapter_list_data = ai_service.get_book_chapter_list(filepath, original_filename)
-            if not chapter_list_data or 'chapters' not in chapter_list_data:
-                raise Exception("AI service failed to return a valid chapter list.")
-
-            for chapter_data in chapter_list_data['chapters']:
-                new_chapter = Chapter(book_id=new_book.id, chapter_number=chapter_data.get('chapter_number'), title=chapter_data.get('title'), page_range=chapter_data.get('page_range'))
-                db.session.add(new_chapter)
-                db.session.flush()
-                db.session.add(GeneratedContent(chapter_id=new_chapter.id, html_content="<p>Content generation is pending. Click 'Generate Overview' to begin.</p>"))
-
-            new_book.subject = ai_service.detect_subject_from_book(filepath)
-            db.session.add(BookPreface(book_id=new_book.id, html_content=ai_service.get_book_preface(filepath)))
-            db.session.add(BookSummary(book_id=new_book.id, html_content=ai_service.get_book_summary(filepath)))
-            context_data = ai_service.get_book_context(filepath)
-            db.session.add(BookContext(book_id=new_book.id, themes=json.dumps(context_data.get('themes')), structure=context_data.get('structure'), complexity_map=context_data.get('complexity_map')))
-
-            db.session.commit()
-            flash('Your new book has been processed!')
-
+            ai_service.process_new_book(new_book.id)
+            flash('Your new book has been fully processed!')
         except Exception as e:
             db.session.rollback()
             db.session.delete(new_book)
             db.session.commit()
             flash(f'An error occurred during AI processing: {e}')
-        return redirect(url_for('dashboard'))
+
+        return redirect(url_for('course_details', course_id=course_id) if course_id else url_for('dashboard'))
     else:
         flash('Only PDF files are allowed.')
-        return redirect(url_for('dashboard'))
-
-@app.route('/get_semesters_for_course/<int:course_id>')
-@login_required
-def get_semesters_for_course(course_id):
-    course = Course.query.get_or_404(course_id)
-    if course.user_id != current_user.id:
-        return json.dumps({'error': 'Permission denied'}), 403
-    semesters = [{'id': s.id, 'name': s.name} for s in course.semesters]
-    return json.dumps(semesters)
+        return redirect(request.referrer or url_for('dashboard'))
 
 @app.route('/course/<int:course_id>')
 @login_required
 def course_details(course_id):
-    course = Course.query.get_or_404(course_id)
-    if course.user_id != current_user.id:
-        flash("You do not have permission to view this course.")
-        return redirect(url_for('dashboard'))
+    course = Course.query.filter_by(id=course_id, user_id=current_user.id).first_or_404()
     books = Book.query.filter_by(course_id=course.id).order_by(Book.semester_id, Book.original_name).all()
     return render_template('course_details.html', course=course, books=books)
 
 @app.route('/course/<int:course_id>/add_semester', methods=['POST'])
 @login_required
 def add_semester(course_id):
-    course = Course.query.get_or_404(course_id)
-    if course.user_id != current_user.id:
-        flash("You do not have permission to modify this course.")
-        return redirect(url_for('dashboard'))
+    course = Course.query.filter_by(id=course_id, user_id=current_user.id).first_or_404()
     name = request.form.get('name')
     if name:
-        new_semester = Semester(name=name, course_id=course.id)
-        db.session.add(new_semester)
+        db.session.add(Semester(name=name, course_id=course.id))
         db.session.commit()
         flash(f'Semester "{name}" has been added to {course.name}.')
     else:
         flash("Semester name cannot be empty.")
     return redirect(url_for('course_details', course_id=course_id))
 
-@app.route('/book/<int:book_id>')
+@app.route('/course/<int:course_id>/book/<int:book_id>')
 @login_required
-def book_details(book_id):
-    book = Book.query.get_or_404(book_id)
-    if book.user_id != current_user.id:
-        flash("You do not have permission to view this book.")
-        return redirect(url_for('dashboard'))
+def book_details(course_id, book_id):
+    book = Book.query.filter_by(id=book_id, course_id=course_id, user_id=current_user.id).first_or_404()
     chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chapter_number).all()
     return render_template('book_details.html', book=book, chapters=chapters)
 
-@app.route('/book/<int:book_id>/chapter/<int:chapter_id>')
+@app.route('/course/<int:course_id>/book/<int:book_id>/chapter/<int:chapter_id>')
 @login_required
-def chapter_view(book_id, chapter_id):
-    book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
+def chapter_view(course_id, book_id, chapter_id):
+    book = Book.query.filter_by(id=book_id, course_id=course_id, user_id=current_user.id).first_or_404()
     chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
     content = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
     return render_template('chapter_view.html', book=book, chapter=chapter, content=content)
 
-@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
+# --- Generation Routes ---
+@app.route('/course/<int:course_id>/book/<int:book_id>/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
 @login_required
-def generate_overview(book_id, chapter_id):
+def generate_overview(course_id, book_id, chapter_id):
     book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
     chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
-
-    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-    if not content_record:
-        flash("Cannot generate overview as no content record exists.")
-        return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
+    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first_or_404()
     try:
         user_context = UserContext.query.filter_by(user_id=current_user.id).first()
-        user_context_text = user_context.generated_context_text if user_context else ""
-        all_chapter_titles = [c.title for c in chapter.book.chapters]
-
-        trimmed_filepath = None
-        try:
-            trimmed_filepath = pdf_utils.trim_pdf(os.path.join(app.config['UPLOAD_FOLDER'], chapter.book.filename), chapter.page_range)
-            if not trimmed_filepath:
-                raise Exception("Failed to trim PDF for overview generation.")
-
-            overview_html = ai_service.get_overview_for_trimmed_chapter(
-                trimmed_filepath, chapter.title, user_context_text, all_chapter_titles
-            )
-            content_record.html_content = overview_html or "<p>Content generation failed.</p>"
-            db.session.commit()
-            flash("Chapter overview generated successfully!")
-        finally:
-            if trimmed_filepath:
-                pdf_utils.cleanup_temp_file(trimmed_filepath)
+        overview_html = ai_service.get_overview_for_trimmed_chapter(chapter, book, user_context)
+        content_record.html_content = overview_html or "<p>Content generation failed.</p>"
+        db.session.commit()
+        flash("Chapter overview generated successfully!")
     except Exception as e:
         flash(f"An error occurred during overview generation: {e}")
+    return redirect(url_for('chapter_view', course_id=course_id, book_id=book_id, chapter_id=chapter_id))
 
-    return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
+@app.route('/course/<int:course_id>/book/<int:book_id>/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
 @login_required
-def generate_study_aids(book_id, chapter_id):
+def generate_study_aids(course_id, book_id, chapter_id):
     book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
     chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
-
-    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-    if not content_record or "Content generation is pending" in content_record.html_content:
+    content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first_or_404()
+    if "Content generation is pending" in content_record.html_content:
         flash("Please generate the chapter overview before creating study aids.")
-        return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
+        return redirect(url_for('chapter_view', course_id=course_id, book_id=book_id, chapter_id=chapter_id))
     try:
         user_context = UserContext.query.filter_by(user_id=current_user.id).first()
-        flashcards_json = ai_service.get_flashcards_for_chapter(chapter, chapter.book, user_context)
-        if flashcards_json:
-            content_record.flashcards_json = json.dumps(flashcards_json)
-            flash("Flashcards generated successfully!")
-        else:
-            flash("Failed to generate flashcards from AI service.")
-
-        mind_map_json = ai_service.get_mind_map_for_chapter(chapter, chapter.book, user_context)
-        if mind_map_json:
-            content_record.mind_map_json = json.dumps(mind_map_json)
-            flash("Mind map generated successfully!")
-        else:
-            flash("Failed to generate mind map from AI service.")
-
+        flashcards_json = ai_service.get_flashcards_for_chapter(chapter, book, user_context)
+        content_record.flashcards_json = json.dumps(flashcards_json) if flashcards_json else None
+        mind_map_json = ai_service.get_mind_map_for_chapter(chapter, book, user_context)
+        content_record.mind_map_json = json.dumps(mind_map_json) if mind_map_json else None
         db.session.commit()
+        flash("Study aids generated successfully!")
     except Exception as e:
         flash(f"An error occurred during study aid generation: {e}")
+    return redirect(url_for('chapter_view', course_id=course_id, book_id=book_id, chapter_id=chapter_id))
 
-    return redirect(url_for('chapter_view', chapter_id=chapter.id))
-
-@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/generate_assessment', methods=['POST'])
+@app.route('/course/<int:course_id>/book/<int:book_id>/chapter/<int:chapter_id>/generate_assessment', methods=['POST'])
 @login_required
-def generate_assessment(book_id, chapter_id):
+def generate_assessment(course_id, book_id, chapter_id):
     book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
     chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
     try:
-        assessment_json = ai_service.get_assessment_for_chapter(chapter, chapter.book)
+        assessment_json = ai_service.get_assessment_for_chapter(chapter, book)
         if assessment_json:
-            content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-            if content_record:
-                content_record.questions_json = json.dumps(assessment_json)
-                db.session.commit()
-                flash("Assessment generated successfully!")
-            else:
-                flash("Could not find content record to save assessment.")
+            content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first_or_404()
+            content_record.questions_json = json.dumps(assessment_json)
+            db.session.commit()
+            flash("Assessment generated successfully!")
         else:
             flash("Failed to generate assessment from AI service.")
     except Exception as e:
         flash(f"An error occurred during assessment generation: {e}")
-    return redirect(url_for('chapter_view', chapter_id=chapter.id))
+    return redirect(url_for('chapter_view', course_id=course_id, book_id=book_id, chapter_id=chapter_id))
 
-@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
+@app.route('/course/<int:course_id>/book/<int:book_id>/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
 @login_required
-def deep_dive_content(book_id, chapter_id):
+def deep_dive_content(course_id, book_id, chapter_id):
     book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
     chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
     try:
         user_context = UserContext.query.filter_by(user_id=current_user.id).first()
         course_context_db = chapter.book.course.context if chapter.book.course else None
         book_context_db = chapter.book.context
-
-        rich_content_html = ai_service.get_deep_dive_content(chapter, chapter.book, user_context, course_context_db, book_context_db)
-
-        content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-        if content_record:
-            content_record.rich_html_content = rich_content_html
-            db.session.commit()
-            flash(f'Deep dive for "{chapter.title}" has been generated!')
-        else:
-            flash('Error: Could not find the content record to update.')
+        rich_content_html = ai_service.get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db)
+        content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first_or_404()
+        content_record.rich_html_content = rich_content_html
+        db.session.commit()
+        flash(f'Deep dive for "{chapter.title}" has been generated!')
     except Exception as e:
         flash(f'An error occurred during the deep dive: {e}')
-    return redirect(url_for('chapter_view', chapter_id=chapter.id))
+    return redirect(url_for('chapter_view', course_id=course_id, book_id=book_id, chapter_id=chapter_id))
 
 # --- Main Execution ---
-def create_tables():
+if __name__ == '__main__':
     with app.app_context():
         from flask_migrate import upgrade
         upgrade()
-
-if __name__ == '__main__':
-    create_tables()
     app.run(debug=True)
