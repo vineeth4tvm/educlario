@@ -4,7 +4,7 @@ import re
 import time
 import functools
 import google.generativeai as genai
-from google.generativeai.types import generation_types
+from google.api_core import exceptions as core_exceptions
 from pathlib import Path
 from pdf_utils import trim_pdf, cleanup_temp_file
 
@@ -44,7 +44,7 @@ def retry_on_rate_limit(max_retries=3):
             while retries < max_retries:
                 try:
                     return func(*args, **kwargs)
-                except generation_types.RateLimitError as e:
+                except core_exceptions.ResourceExhausted as e:
                     retries += 1
                     if retries >= max_retries: raise e
                     delay_match = re.search(r'retry_delay {\s*seconds: (\d+)\s*}', str(e))
@@ -190,7 +190,7 @@ def get_flashcards_for_chapter(chapter, book, user_context):
         pdf_part = _create_pdf_part(trimmed_filepath)
         user_context_text = user_context.generated_context_text if user_context else ""
         all_chapter_titles = [c.title for c in book.chapters]
-        context_prompt_addition = f"The book's chapters are: {', '.join(all_chapter_titles)}."
+        context_prompt_addition = f"For context, the book's chapters are: {', '.join(all_chapter_titles)}."
         if user_context_text:
             context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
 
@@ -214,7 +214,7 @@ def get_mind_map_for_chapter(chapter, book, user_context):
         pdf_part = _create_pdf_part(trimmed_filepath)
         user_context_text = user_context.generated_context_text if user_context else ""
         all_chapter_titles = [c.title for c in book.chapters]
-        context_prompt_addition = f"The book's chapters are: {', '.join(all_chapter_titles)}."
+        context_prompt_addition = f"For context, the book's chapters are: {', '.join(all_chapter_titles)}."
         if user_context_text:
             context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
 

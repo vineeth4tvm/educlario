@@ -14,10 +14,9 @@
             <form method="POST" action="{{ url_for('generate_overview', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">
                 <button type="submit">Generate Overview</button>
             </form>
-        {% elif content and content.rich_html_content %}
-            {{ content.rich_html_content|safe }}
         {% elif content %}
-            {{ content.html_content|safe }}
+            {# Always show the rich content if it exists, otherwise the overview #}
+            {{ content.rich_html_content|safe if content.rich_html_content else content.html_content|safe }}
         {% else %}
             <p>No content record found for this chapter.</p>
         {% endif %}
@@ -25,6 +24,7 @@
 
     <hr>
 
+    {# Show regeneration actions if the initial overview has been created #}
     {% if content and 'Content generation is pending' not in content.html_content %}
         <h4>Content Actions</h4>
         <div class="content-actions" style="display: flex; gap: 10px; margin-bottom: 1em;">
