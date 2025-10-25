@@ -75,15 +75,31 @@ def get_book_chapter_list(filepath, original_filename):
     return json.loads(_clean_json_response(response.text))
 
 @retry_on_rate_limit()
-def get_overview_for_trimmed_chapter(trimmed_filepath, chapter_title, user_context_text, all_chapter_titles):
-    context_prompt_addition = f"For context, the book's chapters are: {', '.join(all_chapter_titles)}."
-    if user_context_text:
-        context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
-    prompt = _load_prompt('generate_chapter_overview.txt', chapter_title=chapter_title, context_prompt_addition=context_prompt_addition)
-    if not prompt: return None
-    pdf_part = _create_pdf_part(trimmed_filepath)
-    response = pro_model.generate_content([prompt, pdf_part])
-    return response.text
+def get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles):
+    trimmed_filepath = None
+    try:
+        if not chapter.page_range:
+            raise Exception("Cannot generate overview without a page range.")
+
+        original_filepath = os.path.join('uploads', book.filename)
+        trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
+        if not trimmed_filepath:
+            raise Exception("Failed to trim PDF for overview generation.")
+
+        user_context_text = user_context.generated_context_text if user_context else ""
+        context_prompt_addition = f"For context, the book's chapters are: {', '.join(all_chapter_titles)}."
+        if user_context_text:
+            context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
+
+        prompt = _load_prompt('generate_chapter_overview.txt', chapter_title=chapter.title, context_prompt_addition=context_prompt_addition)
+        if not prompt: return None
+
+        pdf_part = _create_pdf_part(trimmed_filepath)
+        response = pro_model.generate_content([prompt, pdf_part])
+        return response.text
+    finally:
+        if trimmed_filepath:
+            cleanup_temp_file(trimmed_filepath)
 
 @retry_on_rate_limit()
 def detect_subject_from_book(filepath):
