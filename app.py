@@ -291,23 +291,19 @@ def book_details(book_id):
     chapters = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chapter_number).all()
     return render_template('book_details.html', book=book, chapters=chapters)
 
-@app.route('/chapter/<int:chapter_id>')
+@app.route('/book/<int:book_id>/chapter/<int:chapter_id>')
 @login_required
-def chapter_view(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to view this chapter.")
-        return redirect(url_for('dashboard'))
+def chapter_view(book_id, chapter_id):
+    book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
+    chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
     content = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
-    return render_template('chapter_view.html', chapter=chapter, content=content)
+    return render_template('chapter_view.html', book=book, chapter=chapter, content=content)
 
-@app.route('/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
+@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
 @login_required
-def generate_overview(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to modify this content.")
-        return redirect(url_for('dashboard'))
+def generate_overview(book_id, chapter_id):
+    book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
+    chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
 
     content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
     if not content_record:
@@ -339,13 +335,11 @@ def generate_overview(chapter_id):
 
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
-@app.route('/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
+@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/generate_study_aids', methods=['POST'])
 @login_required
-def generate_study_aids(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to modify this content.")
-        return redirect(url_for('dashboard'))
+def generate_study_aids(book_id, chapter_id):
+    book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
+    chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
 
     content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
     if not content_record or "Content generation is pending" in content_record.html_content:
@@ -374,13 +368,11 @@ def generate_study_aids(chapter_id):
 
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
-@app.route('/chapter/<int:chapter_id>/generate_assessment', methods=['POST'])
+@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/generate_assessment', methods=['POST'])
 @login_required
-def generate_assessment(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to modify this content.")
-        return redirect(url_for('dashboard'))
+def generate_assessment(book_id, chapter_id):
+    book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
+    chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
     try:
         assessment_json = ai_service.get_assessment_for_chapter(chapter, chapter.book)
         if assessment_json:
@@ -397,13 +389,11 @@ def generate_assessment(chapter_id):
         flash(f"An error occurred during assessment generation: {e}")
     return redirect(url_for('chapter_view', chapter_id=chapter.id))
 
-@app.route('/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
+@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/deep_dive', methods=['POST'])
 @login_required
-def deep_dive_content(chapter_id):
-    chapter = Chapter.query.get_or_404(chapter_id)
-    if chapter.book.user_id != current_user.id:
-        flash("You do not have permission to modify this content.")
-        return redirect(url_for('dashboard'))
+def deep_dive_content(book_id, chapter_id):
+    book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
+    chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
     try:
         user_context = UserContext.query.filter_by(user_id=current_user.id).first()
         course_context_db = chapter.book.course.context if chapter.book.course else None
