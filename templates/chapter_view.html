@@ -3,7 +3,7 @@
 {% block title %}{{ chapter.title }} - {{ book.original_name }}{% endblock %}
 
 {% block content %}
-    <h2><a href="{{ url_for('course_details', course_id=book.course_id) }}">{{ book.course.name }}</a> > <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a></h2>
+    <h2><a href="{{ url_for('course_details', course_id=book.course_id) }}">{{ book.course.name }}</a> > <a href="{{ url_for('book_details', course_id=book.course_id, book_id=book.id) }}">{{ book.original_name }}</a></h2>
     <h3>{{ chapter.title }}</h3>
 
     <hr>
@@ -11,7 +11,7 @@
     <div class="generated-content">
         {% if content and 'Content generation is pending' in content.html_content %}
             <p>The overview for this chapter has not been generated yet.</p>
-            <form method="POST" action="{{ url_for('generate_overview', book_id=book.id, chapter_id=chapter.id) }}">
+            <form method="POST" action="{{ url_for('generate_overview', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">
                 <button type="submit">Generate Overview</button>
             </form>
         {% elif content and content.rich_html_content %}
@@ -28,10 +28,10 @@
     {% if content and 'Content generation is pending' not in content.html_content %}
         <h4>Content Actions</h4>
         <div class="content-actions" style="display: flex; gap: 10px; margin-bottom: 1em;">
-            <form method="POST" action="{{ url_for('generate_overview', book_id=book.id, chapter_id=chapter.id) }}">
+            <form method="POST" action="{{ url_for('generate_overview', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">
                 <button type="submit">Regenerate Overview</button>
             </form>
-            <form method="POST" action="{{ url_for('deep_dive_content', book_id=book.id, chapter_id=chapter.id) }}">
+            <form method="POST" action="{{ url_for('deep_dive_content', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">
                 <button type="submit">Regenerate Deep Dive</button>
             </form>
         </div>
@@ -65,7 +65,7 @@
         </div>
     {% endif %}
     {% if content and 'Content generation is pending' not in content.html_content %}
-        <form method="POST" action="{{ url_for('generate_study_aids', book_id=book.id, chapter_id=chapter.id) }}">
+        <form method="POST" action="{{ url_for('generate_study_aids', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">
             <button type="submit">Generate/Regenerate Study Aids</button>
         </form>
     {% endif %}
@@ -100,14 +100,14 @@
     {% else %}
         {% if content and 'Content generation is pending' not in content.html_content %}
         <p>No assessment has been generated for this chapter yet.</p>
-        <form method="POST" action="{{ url_for('generate_assessment', book_id=book.id, chapter_id=chapter.id) }}">
+        <form method="POST" action="{{ url_for('generate_assessment', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">
             <button type="submit">Generate Assessment</button>
         </form>
         {% endif %}
     {% endif %}
 
     <p>
-        <a href="{{ url_for('book_details', book_id=book.id) }}">Back to Chapter List</a> |
+        <a href="{{ url_for('book_details', course_id=book.course_id, book_id=book.id) }}">Back to Chapter List</a> |
         <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
     </p>
 
