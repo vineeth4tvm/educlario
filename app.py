@@ -57,6 +57,15 @@ def dashboard():
     standalone_books = Book.query.filter_by(user_id=current_user.id, course_id=None).order_by(Book.uploaded_at.desc()).all()
     return render_template('dashboard.html', name=current_user.email, courses=courses, standalone_books=standalone_books)
 
+# --- API Routes ---
+@app.route('/get_semesters_for_course/<int:course_id>')
+@login_required
+def get_semesters_for_course(course_id):
+    # Ensure the course belongs to the current user to prevent unauthorized access
+    course = Course.query.filter_by(id=course_id, user_id=current_user.id).first_or_404()
+    semesters = Semester.query.filter_by(course_id=course.id).order_by(Semester.name).all()
+    return json.dumps([{'id': s.id, 'name': s.name} for s in semesters])
+
 # --- Auth Routes ---
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
