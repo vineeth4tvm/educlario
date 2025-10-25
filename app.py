@@ -188,33 +188,74 @@ def upload_book():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        course_id = request.form.get('course_id')
-        semester_id = request.form.get('semester_id')
+        course_id = request.form.get('course_id') or None
+        semester_id = request.form.get('semester_id') or None
 
         # Validation
         if course_id:
             course = Course.query.filter_by(id=course_id, user_id=current_user.id).first()
-            if not course:
-                flash("Invalid course selected."); return redirect(url_for('dashboard'))
-        else: course_id = None
+            if not course: flash("Invalid course selected."); return redirect(url_for('dashboard'))
         if semester_id:
             semester = Semester.query.filter_by(id=semester_id, course_id=course_id).first()
-            if not semester:
-                flash("Invalid semester for the chosen course."); return redirect(url_for('dashboard'))
-        else: semester_id = None
+            if not semester: flash("Invalid semester for the chosen course."); return redirect(url_for('dashboard'))
 
         new_book = Book(user_id=current_user.id, course_id=course_id, semester_id=semester_id, filename=filename, original_name=original_filename)
         db.session.add(new_book)
-        db.session.commit()
+        db.session.commit() # Commit to get new_book.id
+
         flash(f'Book "{original_filename}" uploaded. Processing with AI...')
 
         try:
-            ai_service.process_new_book(new_book.id)
+            # Step 1: Get chapter list from AI
+            chapters_data = ai_service.get_book_chapter_list(filepath, new_book.original_name)
+            if not chapters_data: raise Exception("AI failed to identify chapters.")
+
+            # Step 2: Create Chapter and placeholder Content records
+            for ch_data in chapters_data:
+                new_chapter = Chapter(
+                    book_id=new_book.id,
+                    chapter_number=ch_data.get('chapter_number'),
+                    title=ch_data.get('title'),
+                    page_range=ch_data.get('page_range')
+                )
+                db.session.add(new_chapter)
+                db.session.flush() # Flush to get new_chapter.id
+
+                placeholder_content = GeneratedContent(
+                    chapter_id=new_chapter.id,
+                    html_content="<p>Content generation is pending. Click 'Generate Overview' to start.</p>"
+                )
+                db.session.add(placeholder_content)
+
+            # Step 3: Generate and store book-level context, preface, and summary
+            book_context_data = ai_service.get_book_context(filepath)
+            if book_context_data:
+                db.session.add(BookContext(book_id=new_book.id, **book_context_data))
+
+            preface_html = ai_service.get_book_preface(filepath)
+            if preface_html:
+                db.session.add(BookPreface(book_id=new_book.id, html_content=preface_html))
+
+            summary_html = ai_service.get_book_summary(filepath)
+            if summary_html:
+                db.session.add(BookSummary(book_id=new_book.id, html_content=summary_html))
+
+            # Step 4: Detect and store the book's subject
+            subject = ai_service.detect_subject_from_book(filepath)
+            new_book.subject = subject
+
+            db.session.commit() # Commit all changes for the book
             flash('Your new book has been fully processed!')
+
         except Exception as e:
             db.session.rollback()
-            db.session.delete(new_book)
+            # Manually delete the book and its file if processing fails
+            book_to_delete = Book.query.get(new_book.id)
+            if book_to_delete:
+                db.session.delete(book_to_delete)
             db.session.commit()
+            if os.path.exists(filepath):
+                os.remove(filepath)
             flash(f'An error occurred during AI processing: {e}')
 
         return redirect(url_for('course_details', course_id=course_id) if course_id else url_for('dashboard'))
