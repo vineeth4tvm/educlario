@@ -25,18 +25,19 @@
 
     <hr>
 
-    {# The "Dive Deeper" button only shows if there is overview content to dive into #}
-    {% if content and 'Content generation is pending' not in content.html_content %}
-    <div>
-        <form method="POST" action="{{ url_for('deep_dive_content', chapter_id=chapter.id) }}" style="display: inline;">
-            {% if content.rich_html_content %}
-                <button type="submit">Regenerate Deep Dive</button>
-            {% else %}
-                <button type="submit">Dive Deeper Now!</button>
-            {% endif %}
+    {# Persistent Content Actions #}
+    <h4>Content Actions</h4>
+    <div class="content-actions" style="display: flex; gap: 10px; margin-bottom: 1em;">
+        <form method="POST" action="{{ url_for('generate_overview', chapter_id=chapter.id) }}">
+            <button type="submit">Regenerate Overview</button>
+        </form>
+        <form method="POST" action="{{ url_for('deep_dive_content', chapter_id=chapter.id) }}">
+            <button type="submit">Regenerate Deep Dive</button>
+        </form>
+        <form method="POST" action="{{ url_for('generate_study_aids', chapter_id=chapter.id) }}">
+            <button type="submit">Regenerate Study Aids</button>
         </form>
     </div>
-    {% endif %}
 
     <hr>
 
