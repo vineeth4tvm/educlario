@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}{{ chapter.title }} - {{ chapter.book.original_name }}{% endblock %}
+{% block title %}{{ chapter.title }} - {{ book.original_name }}{% endblock %}
 
 {% block content %}
-    <h2>{{ chapter.book.original_name }}</h2>
+    <h2><a href="{{ url_for('course_details', course_id=book.course_id) }}">{{ book.course.name }}</a> > <a href="{{ url_for('book_details', book_id=book.id) }}">{{ book.original_name }}</a></h2>
     <h3>{{ chapter.title }}</h3>
 
     <hr>
@@ -11,7 +11,7 @@
     <div class="generated-content">
         {% if content and 'Content generation is pending' in content.html_content %}
             <p>The overview for this chapter has not been generated yet.</p>
-            <form method="POST" action="{{ url_for('generate_overview', chapter_id=chapter.id) }}">
+            <form method="POST" action="{{ url_for('generate_overview', book_id=book.id, chapter_id=chapter.id) }}">
                 <button type="submit">Generate Overview</button>
             </form>
         {% elif content and content.rich_html_content %}
@@ -25,19 +25,51 @@
 
     <hr>
 
-    {# Persistent Content Actions #}
-    <h4>Content Actions</h4>
-    <div class="content-actions" style="display: flex; gap: 10px; margin-bottom: 1em;">
-        <form method="POST" action="{{ url_for('generate_overview', chapter_id=chapter.id) }}">
-            <button type="submit">Regenerate Overview</button>
+    {% if content and 'Content generation is pending' not in content.html_content %}
+        <h4>Content Actions</h4>
+        <div class="content-actions" style="display: flex; gap: 10px; margin-bottom: 1em;">
+            <form method="POST" action="{{ url_for('generate_overview', book_id=book.id, chapter_id=chapter.id) }}">
+                <button type="submit">Regenerate Overview</button>
+            </form>
+            <form method="POST" action="{{ url_for('deep_dive_content', book_id=book.id, chapter_id=chapter.id) }}">
+                <button type="submit">Regenerate Deep Dive</button>
+            </form>
+        </div>
+        <hr>
+    {% endif %}
+
+    <h3>Study Aids</h3>
+    {% if content and content.flashcards_json %}
+        {% set flashcards = content.flashcards_json | fromjson %}
+        <h4>Flashcards</h4>
+        <div id="flashcard-container" style="border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; min-height: 100px; text-align: center; cursor: pointer;">
+            <p id="flashcard-text"></p>
+        </div>
+        <button id="prev-flashcard-btn">Previous</button>
+        <button id="next-flashcard-btn">Next</button>
+        <p><small>Click card to flip.</small></p>
+    {% endif %}
+    {% if content and content.mind_map_json %}
+        {% set mind_map_data = content.mind_map_json | fromjson %}
+        <h4>Mind Map</h4>
+        <div class="mind-map">
+            <ul>
+                {% for item in mind_map_data.mind_map.children recursive %}
+                    <li>{{ item.name }}
+                        {% if item.children %}
+                            <ul>{{ loop(item.children) }}</ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    {% if content and 'Content generation is pending' not in content.html_content %}
+        <form method="POST" action="{{ url_for('generate_study_aids', book_id=book.id, chapter_id=chapter.id) }}">
+            <button type="submit">Generate/Regenerate Study Aids</button>
         </form>
-        <form method="POST" action="{{ url_for('deep_dive_content', chapter_id=chapter.id) }}">
-            <button type="submit">Regenerate Deep Dive</button>
-        </form>
-        <form method="POST" action="{{ url_for('generate_study_aids', chapter_id=chapter.id) }}">
-            <button type="submit">Regenerate Study Aids</button>
-        </form>
-    </div>
+    {% endif %}
+
 
     <hr>
 
@@ -66,61 +98,21 @@
             {% endfor %}
         </div>
     {% else %}
+        {% if content and 'Content generation is pending' not in content.html_content %}
         <p>No assessment has been generated for this chapter yet.</p>
-        <form method="POST" action="{{ url_for('generate_assessment', chapter_id=chapter.id) }}">
+        <form method="POST" action="{{ url_for('generate_assessment', book_id=book.id, chapter_id=chapter.id) }}">
             <button type="submit">Generate Assessment</button>
         </form>
+        {% endif %}
     {% endif %}
 
-    <hr>
-
     <p>
-        <a href="{{ url_for('book_details', book_id=chapter.book_id) }}">Back to Chapter List</a> |
+        <a href="{{ url_for('book_details', book_id=book.id) }}">Back to Chapter List</a> |
         <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
     </p>
 
-    <hr>
-
-    <h3>Study Aids</h3>
-    {% if content and (content.flashcards_json or content.mind_map_json) %}
-        {# Flashcards UI #}
-        {% if content.flashcards_json %}
-            {% set flashcards = content.flashcards_json | fromjson %}
-            <h4>Flashcards</h4>
-            <div id="flashcard-container" style="border: 1px solid #ccc; padding: 1em; margin-bottom: 1em; min-height: 100px; text-align: center; cursor: pointer;">
-                <p id="flashcard-text"></p>
-            </div>
-            <button id="prev-flashcard-btn">Previous</button>
-            <button id="next-flashcard-btn">Next</button>
-            <p><small>Click card to flip.</small></p>
-        {% endif %}
-
-        {# Mind Map UI #}
-        {% if content.mind_map_json %}
-            {% set mind_map_data = content.mind_map_json | fromjson %}
-            <h4>Mind Map</h4>
-            <div class="mind-map">
-                <ul>
-                    {% for item in mind_map_data.mind_map.children recursive %}
-                        <li>{{ item.name }}
-                            {% if item.children %}
-                                <ul>{{ loop(item.children) }}</ul>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        {% endif %}
-    {% else %}
-        <p>No study aids have been generated for this chapter yet.</p>
-        <form method="POST" action="{{ url_for('generate_study_aids', chapter_id=chapter.id) }}">
-            <button type="submit">Generate Study Aids</button>
-        </form>
-    {% endif %}
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- Answer Toggling for Assessment ---
     const answerButtons = document.querySelectorAll('.show-answer-btn');
     answerButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -135,7 +127,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // --- Flashcard Functionality ---
     const flashcardContainer = document.getElementById('flashcard-container');
     if (flashcardContainer) {
         const flashcards = {{ content.flashcards_json | fromjson | tojson }};
@@ -170,7 +161,6 @@ document.addEventListener('DOMContentLoaded', function() {
             updateFlashcard();
         });
 
-        // Initialize first card
         updateFlashcard();
     }
 });
