@@ -1,6 +1,33 @@
 import os
 from PyPDF2 import PdfReader, PdfWriter
 
+def extract_text_from_pdf(filepath):
+    """
+    Extracts all text from a given PDF file.
+
+    Args:
+        filepath (str): The full path to the PDF file.
+
+    Returns:
+        str: The extracted text, with pages separated by a newline.
+             Returns an empty string if there's an error or the file is not found.
+    """
+    if not os.path.exists(filepath):
+        print(f"Error: File not found at {filepath}")
+        return ""
+
+    text = ""
+    try:
+        reader = PdfReader(filepath)
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+        return text
+    except Exception as e:
+        print(f"Error extracting text from PDF {filepath}: {e}")
+        return ""
+
 def trim_pdf(original_filepath, page_range_str):
     """
     Creates a temporary, trimmed version of a PDF based on a page range.

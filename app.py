@@ -257,7 +257,12 @@ def generate_overview(course_id, book_id, chapter_id):
     content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first_or_404()
     try:
         user_context = UserContext.query.filter_by(user_id=current_user.id).first()
-        overview_html = ai_service.get_overview_for_trimmed_chapter(chapter, book, user_context)
+
+        # Fetch all chapter titles to provide context to the AI
+        all_chapters_for_book = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chapter_number).all()
+        all_chapter_titles = [c.title for c in all_chapters_for_book]
+
+        overview_html = ai_service.get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles)
         content_record.html_content = overview_html or "<p>Content generation failed.</p>"
         db.session.commit()
         flash("Chapter overview generated successfully!")
