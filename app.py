@@ -230,6 +230,9 @@ def upload_book():
             # Step 3: Generate and store book-level context, preface, and summary
             book_context_data = ai_service.get_book_context(filepath)
             if book_context_data:
+                # Serialize list-like fields to JSON strings before saving
+                if isinstance(book_context_data.get('themes'), list):
+                    book_context_data['themes'] = json.dumps(book_context_data['themes'])
                 db.session.add(BookContext(book_id=new_book.id, **book_context_data))
 
             preface_html = ai_service.get_book_preface(filepath)
