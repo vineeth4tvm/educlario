@@ -6,7 +6,7 @@ import functools
 import google.generativeai as genai
 from google.api_core import exceptions as core_exceptions
 from pathlib import Path
-from pdf_utils import trim_pdf, cleanup_temp_file
+from pdf_utils import trim_pdf, cleanup_temp_file, extract_text_from_pdf
 
 # --- Configuration ---
 PROMPTS_DIR = Path(__file__).resolve().parent / 'prompts'
@@ -140,6 +140,11 @@ def get_book_context(filepath):
     response = pro_model.generate_content([prompt, pdf_part])
     return json.loads(_clean_json_response(response.text))
 
+def _check_recitation(response):
+    """Checks if the model's response was blocked for recitation."""
+    if not response.parts and response.candidates[0].finish_reason.name == "RECITATION":
+        raise Exception("Content generation failed due to the model's safety filters detecting potential recitation from copyrighted material. Please try a different chapter or book.")
+
 @retry_on_rate_limit()
 def get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db):
     original_filepath = os.path.join('uploads', book.filename)
@@ -148,8 +153,12 @@ def get_deep_dive_content(chapter, book, user_context, course_context_db, book_c
         if not chapter.page_range: raise Exception("Cannot perform deep dive without a page range.")
         trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
         if not trimmed_filepath: raise Exception("Failed to trim PDF for deep dive.")
-        pdf_part = _create_pdf_part(trimmed_filepath)
 
+        original_chapter_text = extract_text_from_pdf(trimmed_filepath)
+        if not original_chapter_text:
+            raise Exception("Could not extract text from the chapter PDF.")
+
+        pdf_part = _create_pdf_part(trimmed_filepath)
         user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
         course_context_prompt = f"COURSE CONTEXT: Subject: {course_context_db.subject_analysis if course_context_db else 'N/A'}."
         book_context_prompt = f"BOOK CONTEXT: Themes: {book_context_db.themes if book_context_db else 'N/A'}."
@@ -158,16 +167,14 @@ def get_deep_dive_content(chapter, book, user_context, course_context_db, book_c
 
         generation_config = genai.types.GenerationConfig(max_output_tokens=8192)
         initial_response = pro_model.generate_content([initial_prompt, pdf_part], generation_config=generation_config)
+        _check_recitation(initial_response)
         initial_ai_content = initial_response.text
-
-        text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
-        original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
-        original_chapter_text = original_text_response.text
 
         refinement_prompt = _load_prompt('refine_deep_dive.txt', original_chapter_text=original_chapter_text, initial_ai_content=initial_ai_content)
         if not refinement_prompt: raise Exception("Could not load refinement prompt.")
 
         final_response = pro_model.generate_content(refinement_prompt)
+        _check_recitation(final_response)
         return final_response.text
     finally:
         if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
@@ -181,15 +188,15 @@ def get_assessment_for_chapter(chapter, book):
         trimmed_filepath = trim_pdf(original_filepath, chapter.page_range)
         if not trimmed_filepath: raise Exception("Failed to trim PDF for assessment generation.")
 
-        pdf_part = _create_pdf_part(trimmed_filepath)
-        text_extraction_prompt = f"From the provided PDF, extract and return only the raw, complete, and unedited text for the chapter titled '{chapter.title}'."
-        original_text_response = pro_model.generate_content([text_extraction_prompt, pdf_part])
-        content_to_assess = original_text_response.text
+        content_to_assess = extract_text_from_pdf(trimmed_filepath)
+        if not content_to_assess:
+            raise Exception("Could not extract text from the chapter PDF for assessment.")
 
         prompt = _load_prompt('generate_assessment.txt', chapter_content=content_to_assess)
         if not prompt: return None
 
         response = pro_model.generate_content(prompt)
+        _check_recitation(response)
         return json.loads(_clean_json_response(response.text))
     finally:
         if trimmed_filepath: cleanup_temp_file(trimmed_filepath)
