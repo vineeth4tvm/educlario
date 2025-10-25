@@ -1,25 +1,23 @@
 Analyze the provided PDF file, which is a textbook titled "{original_filename}". Your task is to identify all the main chapters or sections.
 
-Return a single JSON object with a key "chapters", which contains a list of objects.
-For each chapter, you MUST extract the following three keys:
+Return a single JSON array, where each object in the array represents a chapter.
+For each chapter object, you MUST extract the following three keys:
 1.  `chapter_number` (as an integer).
 2.  `title` (as a string).
 3.  `page_range` (as a string, e.g., "15-28").
 
 Example Output:
-{{
-  "chapters": [
-    {{
+[
+    {
       "chapter_number": 1,
       "title": "Introduction to Microeconomics",
       "page_range": "1-22"
-    }},
-    {{
+    },
+    {
       "chapter_number": 2,
       "title": "Supply and Demand",
       "page_range": "23-45"
-    }}
-  ]
-}}
+    }
+]
 
-Return only the valid JSON object and nothing else.
+Return only the valid JSON array and nothing else. Do not wrap it in a parent object.
