@@ -31,4 +31,27 @@ HTML OUTPUT using:
 <h2>, <h3>, <p>, <ul>, <ol>, <strong>, <table>
 <div class="formula">, <div class="example">, <div class="key-fact">
 
+CHART GENERATION (where relevant):
+- When data can be visualized (e.g., timelines, comparisons, distributions), generate a chart.
+- Use the following format EXACTLY:
+<div class="chart-container" style="width: 400px; height: 250px;">
+    <canvas></canvas>
+    <script type="application/json">
+        {
+            "type": "bar",
+            "data": {
+                "labels": ["Category A", "Category B"],
+                "datasets": [{
+                    "label": "Dataset Label",
+                    "data": [10, 20]
+                }]
+            },
+            "options": {
+                "responsive": true,
+                "maintainAspectRatio": false
+            }
+        }
+    </script>
+</div>
+
 Make it comprehensive yet scannable.
