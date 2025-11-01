@@ -118,17 +118,27 @@ def profile():
 def edit_profile():
     user_context = UserContext.query.filter_by(user_id=current_user.id).first()
     if request.method == 'POST':
+        explanation_styles = request.form.getlist('explanation_style')
+        if not explanation_styles:
+            explanation_styles = ['text-heavy']
+
         profile_data = {
-            'academic_level': request.form.get('academic_level'), 'interests': request.form.get('interests'),
-            'learning_style': request.form.get('learning_style'), 'location': request.form.get('location'),
-            'explanation_style': request.form.get('explanation_style')
+            'academic_level': request.form.get('academic_level'),
+            'interests': request.form.get('interests'),
+            'learning_style': request.form.get('learning_style'),
+            'location': request.form.get('location'),
+            'explanation_style': ", ".join(explanation_styles)
         }
+
         if not user_context:
             user_context = UserContext(user_id=current_user.id)
             db.session.add(user_context)
 
-        for key, value in profile_data.items():
-            setattr(user_context, key, value)
+        user_context.academic_level = profile_data['academic_level']
+        user_context.interests = profile_data['interests']
+        user_context.learning_style = profile_data['learning_style']
+        user_context.location = profile_data['location']
+        user_context.explanation_style = json.dumps(explanation_styles)
 
         try:
             generated_text = ai_service.get_user_context_summary(profile_data)
@@ -141,6 +151,15 @@ def edit_profile():
         db.session.commit()
         flash('Your profile has been updated.')
         return redirect(url_for('profile'))
+
+    # For GET request, ensure explanation_style is a list for the template
+    if user_context and user_context.explanation_style:
+        try:
+            user_context.explanation_style = json.loads(user_context.explanation_style)
+        except (json.JSONDecodeError, TypeError):
+            # Handle case where it might be a single string from older data
+            user_context.explanation_style = [user_context.explanation_style]
+
     return render_template('edit_profile.html', user_context=user_context)
 
 # --- Course and Book Routes ---

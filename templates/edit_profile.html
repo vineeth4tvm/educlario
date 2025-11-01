@@ -36,12 +36,23 @@
         </div>
 
         <div>
-            <label for="explanation_style">Preferred Explanation Style</label>
-            <select name="explanation_style" required>
-                <option value="conversational" {% if user_context and user_context.explanation_style == 'conversational' %}selected{% endif %}>Conversational</option>
-                <option value="formal" {% if user_context and user_context.explanation_style == 'formal' %}selected{% endif %}>Formal</option>
-                <option value="technical" {% if user_context and user_context.explanation_style == 'technical' %}selected{% endif %}>Technical</option>
-            </select>
+            <label>Preferred Explanation Style</label>
+            <div>
+                <input type="checkbox" name="explanation_style" value="conversational" {% if user_context and 'conversational' in user_context.explanation_style %}checked{% endif %}>
+                <label for="conversational">Conversational</label>
+            </div>
+            <div>
+                <input type="checkbox" name="explanation_style" value="formal" {% if user_context and 'formal' in user_context.explanation_style %}checked{% endif %}>
+                <label for="formal">Formal</label>
+            </div>
+            <div>
+                <input type="checkbox" name="explanation_style" value="technical" {% if user_context and 'technical' in user_context.explanation_style %}checked{% endif %}>
+                <label for="technical">Technical</label>
+            </div>
+            <div>
+                <input type="checkbox" name="explanation_style" value="text-heavy" {% if user_context and 'text-heavy' in user_context.explanation_style %}checked{% endif %}>
+                <label for="text-heavy">Text-heavy detailed explanations</label>
+            </div>
         </div>
 
         <button type="submit">Save Profile</button>
