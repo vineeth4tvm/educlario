@@ -55,4 +55,17 @@ CHART GENERATION (where relevant):
     </script>
 </div>
 
-Make it comprehensive yet scannable. Do not include `<html>`, `<head>`, `<body>`, or `<style>` tags.
+Make it comprehensive yet scannable. Return only a self-contained HTML block. It should include a `<style>` tag with all necessary CSS and the HTML content within a single container `<div>`. Do not include `<html>`, `<head>`, or `<body>` tags.
+
+**Example Output Structure:**
+```html
+<style>
+    /* All your CSS rules go here */
+    .my-container { font-family: sans-serif; }
+</style>
+<div class="my-container">
+    <!-- All your HTML content goes here -->
+    <h2>Chapter Title</h2>
+    <p>This is a paragraph.</p>
+</div>
+```
