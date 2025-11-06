@@ -15,8 +15,13 @@
                 <button type="submit">Generate Overview</button>
             </form>
         {% elif content %}
-            {# Always show the rich content if it exists, otherwise the overview #}
-            {{ content.rich_html_content|safe if content.rich_html_content else content.html_content|safe }}
+            <h4>Overview</h4>
+            {{ content.html_content|safe }}
+            {% if content.rich_html_content %}
+                <hr>
+                <h4>Deep Dive</h4>
+                {{ content.rich_html_content|safe }}
+            {% endif %}
         {% else %}
             <p>No content record found for this chapter.</p>
         {% endif %}

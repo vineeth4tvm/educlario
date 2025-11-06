@@ -26,6 +26,7 @@ FORBIDDEN:
 ✗ Simplifying formulas or calculations
 ✗ Omitting case studies or illustrations
 ✗ Changing technical terminology
+✗ Using <img> tags for charts or graphs. ALL visualizations must use the Chart.js format.
 
 HTML OUTPUT using:
 <h2>, <h3>, <p>, <ul>, <ol>, <strong>, <table>
