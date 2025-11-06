@@ -17,4 +17,4 @@ Your output must be a single block of clean HTML using tags like <h2>, <h3>, <p>
 **Additional Context to Use:**
 {context_prompt_addition}
 
-Return only the raw HTML content for this overview. Do not include any other text, explanation, or markdown formatting.
+Return only the raw HTML content for this overview. Do not include `<html>`, `<head>`, `<body>`, `<style>` tags, or any other text, explanation, or markdown formatting.

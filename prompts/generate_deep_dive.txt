@@ -55,4 +55,4 @@ CHART GENERATION (where relevant):
     </script>
 </div>
 
-Make it comprehensive yet scannable.
+Make it comprehensive yet scannable. Do not include `<html>`, `<head>`, `<body>`, or `<style>` tags.
