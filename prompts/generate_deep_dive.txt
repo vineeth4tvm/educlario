@@ -37,20 +37,20 @@ CHART GENERATION (where relevant):
 <div class="chart-container" style="width: 400px; height: 250px;">
     <canvas></canvas>
     <script type="application/json">
-        {
+        {{
             "type": "bar",
-            "data": {
+            "data": {{
                 "labels": ["Category A", "Category B"],
-                "datasets": [{
+                "datasets": [{{
                     "label": "Dataset Label",
                     "data": [10, 20]
-                }]
-            },
-            "options": {
+                }}]
+            }},
+            "options": {{
                 "responsive": true,
                 "maintainAspectRatio": false
-            }
-        }
+            }}
+        }}
     </script>
 </div>
 

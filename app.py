@@ -111,6 +111,14 @@ def logout():
 @login_required
 def profile():
     user_context = UserContext.query.filter_by(user_id=current_user.id).first()
+    if user_context and user_context.explanation_style:
+        try:
+            # This will succeed if it's a valid JSON string (the new format)
+            json.loads(user_context.explanation_style)
+        except (json.JSONDecodeError, TypeError):
+            # This will happen if it's a single string (the old format)
+            # We'll wrap it in a JSON array string so the template filter can parse it
+            user_context.explanation_style = json.dumps([user_context.explanation_style])
     return render_template('profile.html', user_context=user_context)
 
 @app.route('/profile/edit', methods=['GET', 'POST'])

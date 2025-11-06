@@ -1,4 +1,4 @@
-You are an expert in educational content creation. The provided PDF is a single chapter from a larger textbook. The chapter is titled "{original_filename}".
+You are an expert in educational content creation. The provided PDF is a single chapter from a larger textbook. The chapter is titled "{chapter_title}".
 
 **Your Task:**
 Read the content of this single chapter and generate a brief, simplified overview suitable for a student. Your output should be a single block of clean HTML.
