@@ -45,10 +45,6 @@ Use soft pastel tones (light blue, mint, peach) with smooth card styling:
 ====================================================
 📊 CHARTS (REQUIRED FORMAT)
 ====================================================
-Always include Chart.js before charts:
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 To insert a chart, use this format:
 
 <div class="chart-container">
