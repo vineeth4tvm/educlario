@@ -55,17 +55,29 @@ CHART GENERATION (where relevant):
     </script>
 </div>
 
-Make it comprehensive yet scannable. Return only a self-contained HTML block. It should include a `<style>` tag with all necessary CSS and the HTML content within a single container `<div>`. Do not include `<html>`, `<head>`, or `<body>` tags.
+**Visual Style Guide:**
+Your output must be a single, self-contained HTML block. It must start with a `<style>` tag containing all necessary CSS, followed by a single container `<div>` with the HTML content.
+- Use a modern, clean, and visually engaging style.
+- Use colored cards, illustrative boxes (like the `.so-what` class), and a clear visual hierarchy to make the content easy to digest.
+- Do NOT include `<html>`, `<head>`, or `<body>` tags.
 
-**Example Output Structure:**
+**Example of Desired Structure & Style:**
 ```html
 <style>
-    /* All your CSS rules go here */
-    .my-container {{ font-family: sans-serif; }}
+    .container {{ max-width: 900px; margin: auto; background: #fff; padding: 30px; border-radius: 10px; }}
+    .section-title {{ font-size: 1.8em; color: #3498db; border-left: 5px solid #3498db; padding-left: 15px; margin-bottom: 20px; }}
+    .card {{ background-color: #ecf0f1; border-radius: 8px; padding: 20px; text-align: center; }}
+    .so-what {{ background-color: #fffbeb; border-left: 5px solid #f39c12; padding: 20px; border-radius: 5px; }}
 </style>
-<div class="my-container">
-    <!-- All your HTML content goes here -->
-    <h2>Chapter Title</h2>
-    <p>This is a paragraph.</p>
+<div class="container">
+    <h2 class="section-title">This is a Section Title</h2>
+    <div class="card">
+        <h3>This is a Key Concept</h3>
+        <p>This is the explanation of the concept inside a colored card.</p>
+    </div>
+    <div class="so-what">
+        <h4>Why This Matters</h4>
+        <p>This is a highlighted box for important, real-world applications.</p>
+    </div>
 </div>
 ```
