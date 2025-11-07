@@ -75,7 +75,7 @@ def get_book_chapter_list(filepath, original_filename):
     return json.loads(_clean_json_response(response.text))
 
 @retry_on_rate_limit()
-def get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles):
+def get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles, chart_id):
     trimmed_filepath = None
     try:
         if not chapter.page_range:
@@ -91,7 +91,7 @@ def get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_ti
         if user_context_text:
             context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
 
-        prompt = _load_prompt('generate_chapter_overview.txt', chapter_title=chapter.title, context_prompt_addition=context_prompt_addition)
+        prompt = _load_prompt('generate_chapter_overview.txt', chapter_title=chapter.title, context_prompt_addition=context_prompt_addition, chart_id=chart_id)
         if not prompt: return None
 
         pdf_part = _create_pdf_part(trimmed_filepath)
@@ -146,7 +146,7 @@ def _check_recitation(response):
         raise Exception("Content generation failed due to the model's safety filters detecting potential recitation from copyrighted material. Please try a different chapter or book.")
 
 @retry_on_rate_limit()
-def get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db):
+def get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db, chart_id):
     original_filepath = os.path.join('uploads', book.filename)
     trimmed_filepath = None
     try:
@@ -162,7 +162,7 @@ def get_deep_dive_content(chapter, book, user_context, course_context_db, book_c
         user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
         course_context_prompt = f"COURSE CONTEXT: Subject: {course_context_db.subject_analysis if course_context_db else 'N/A'}."
         book_context_prompt = f"BOOK CONTEXT: Themes: {book_context_db.themes if book_context_db else 'N/A'}."
-        initial_prompt = _load_prompt('generate_deep_dive.txt', chapter_title=chapter.title, user_context_prompt=user_context_prompt, course_context_prompt=course_context_prompt, book_context_prompt=book_context_prompt)
+        initial_prompt = _load_prompt('generate_deep_dive.txt', chapter_title=chapter.title, user_context_prompt=user_context_prompt, course_context_prompt=course_context_prompt, book_context_prompt=book_context_prompt, chart_id=chart_id)
         if not initial_prompt: raise Exception("Could not load deep dive prompt.")
 
         generation_config = genai.types.GenerationConfig(max_output_tokens=8192)

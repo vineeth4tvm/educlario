@@ -1,83 +1,154 @@
-You are an expert educator transforming academic content for EFFICIENT learning.
+You are an expert educator. Your task is to transform the content of the provided chapter, titled "{chapter_title}", into a visually rich, self-contained HTML block.
 
-GOAL: Make "{chapter_title}" faster to learn WITHOUT losing critical information.
+**Instructions:**
+1.  Read the chapter content.
+2.  Populate the following HTML template with the key information from the chapter.
+3.  Replace all placeholders (e.g., `[INSERT ONE-LINER]`, `[FACT 1]`, `[FORMULA EXACT AS WRITTEN IN TEXT]`, etc.) with the relevant content.
+4.  For the chart, generate a simple but relevant visualization based on the chapter's data.
+5.  Your final output must be the complete, filled-in HTML block, starting with `<style>` and ending with `</div>`. Do not include `<html>`, `<body>`, or any other tags.
 
-PRESERVE COMPLETELY:
-✓ Every statistic, formula, date, calculation
-✓ All policy/program names and technical terms
-✓ Complete tables and data
-✓ All examples (but make them scannable)
+**Template to Use:**
+```html
+<style>
+    :root{{
+        --accent:#6A9DFE;
+        --accent-soft:#E9F0FF;
+        --muted:#6b7280;
+        --bg:#ffffff;
+        --card:#fdfaff;
+        --highlight:#fff6e8;
+        --success:#e8f8ef;
+        --radius:12px;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }}
+    .container{{ max-width:980px; margin:24px auto; background:var(--bg); padding:32px; border-radius:16px; box-shadow:0 6px 28px rgba(0,0,0,0.06); color:#222; }}
+    h2.section-title{{ font-size:1.7rem; color:var(--accent); border-left:6px solid var(--accent); padding-left:14px; margin-bottom:20px; }}
 
-OPTIMIZE FOR SPEED:
-- Cut redundancy and verbose explanations
-- Use bullet points over long paragraphs
-- Lead with key insights, then supporting detail
-- Create visual hierarchy (headings, bold, lists)
-- Box important formulas/definitions
-- Use tables for comparisons
+    /* Cards */
+    .card{{ background:var(--accent-soft); padding:18px; border-radius:var(--radius); }}
+    .so-what{{ background:var(--highlight); border-left:5px solid #f4a832; padding:14px; border-radius:10px; margin-top:14px; }}
+    .example{{ background:#fff; border-left:4px solid var(--accent); padding:10px; border-radius:10px; margin-top:10px; }}
+    .key-fact{{ background:var(--success); border-left:4px solid #10b981; padding:10px; border-radius:10px; margin-top:10px; }}
+    .formula{{ background:#fefefe; border:1px dashed #bcd1ff; padding:10px; border-radius:10px; margin-top:10px; font-family:"Courier New", monospace; }}
 
-PERSONALIZATION:
+    /* Chips / Mini tags */
+    .pill{{ display:inline-block; background:#fff; border:1px solid rgba(0,0,0,0.08); padding:5px 10px; border-radius:999px; font-size:0.85rem; color:var(--muted); margin:4px; }}
+
+    /* Tables */
+    table{{ width:100%; border-collapse:collapse; margin-top:10px; }}
+    th,td{{ padding:8px 10px; border-bottom:1px solid rgba(0,0,0,0.08); }}
+    th{{ background:var(--accent-soft); }}
+
+    /* Chart Wrapper */
+    .chart-container{{ width:400px; height:250px; margin-top:10px; }}
+</style>
+<div class="container">
+
+    <h2 class="section-title">{chapter_title}</h2>
+
+    <!-- Key Insights -->
+    <div class="card">
+        <h3>Key Insights (1-minute scan)</h3>
+        <ul>
+            <li><strong>Core Idea:</strong> [INSERT ONE-LINER]</li>
+            <li><strong>3 Must-Remember Facts:</strong>
+                <ul>
+                    <li>[FACT 1]</li>
+                    <li>[FACT 2]</li>
+                    <li>[FACT 3]</li>
+                </ul>
+            </li>
+        </ul>
+
+        <div class="formula">
+            <strong>Key Formula(s):</strong><br>
+            [FORMULA EXACT AS WRITTEN IN TEXT]
+        </div>
+
+        <div class="so-what">
+            <strong>Why this matters:</strong><br>
+            [REAL-WORLD USE / POLICY / APPLICATION]
+        </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div style="margin-top:24px;">
+        <h3>Table / Quick Reference</h3>
+        <table>
+            <thead><tr><th>Term / Scheme</th><th>Details</th><th>Notes</th></tr></thead>
+            <tbody>
+                <tr><td>[NAME]</td><td>[DATA]</td><td>[SIGNIFICANCE]</td></tr>
+                <tr><td>[NAME]</td><td>[DATA]</td><td>[SIGNIFICANCE]</td></tr>
+            </tbody>
+        </table>
+
+        <div class="key-fact">
+            <strong>Key Fact:</strong> [CRITICAL STAT OR OUTCOME]
+        </div>
+    </div>
+
+    <!-- Concepts -->
+    <div style="margin-top:24px;">
+        <h3>Core Concepts (Compressed)</h3>
+        <ul>
+            <li><strong>[CONCEPT 1]</strong> — short clear explanation preserving terminology.</li>
+            <li><strong>[CONCEPT 2]</strong> — one-sentence functional meaning.</li>
+            <li><strong>[CONCEPT 3]</strong> — tie to example / program name.</li>
+        </ul>
+
+        <div>
+            <span class="pill">Term: [TERM]</span>
+            <span class="pill">Scheme: [PROGRAM NAME]</span>
+            <span class="pill">Year: [YYYY]</span>
+        </div>
+    </div>
+
+    <!-- Worked Examples -->
+    <div style="margin-top:24px;">
+        <h3>Worked Example(s)</h3>
+
+        <div class="example">
+            <strong>Example 1</strong>
+            <ol>
+                <li>Given: [DATA EXACT]</li>
+                <li>Steps: [SHOW CALCULATION]</li>
+                <li>Answer: <strong>[FINAL VALUE]</strong></li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Visual Summary Chart -->
+    <div style="margin-top:28px;">
+        <h3>Visual Summary (Easy Memory Anchor)</h3>
+
+        <div class="chart-container">
+            <canvas id="{chart_id}"></canvas>
+        </div>
+
+        <script>
+            new Chart(document.getElementById("{chart_id}"), {{
+                type: "bar",
+                data: {{
+                    labels: ["A", "B", "C"],
+                    datasets: [{{
+                        label: "Comparison",
+                        data: [10, 22, 15],
+                        backgroundColor: ["#A6C8FF", "#FFDDC1", "#C7F9CC"],
+                        borderRadius: 6
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {{ y: {{ ticks: {{ stepSize: 5 }} }} }}
+                }}
+            }});
+        </script>
+    </div>
+
+</div>
+```
 {user_context_prompt}
 {course_context_prompt}
 {book_context_prompt}
-
-FORBIDDEN:
-✗ Removing data, statistics, examples
-✗ Simplifying formulas or calculations
-✗ Omitting case studies or illustrations
-✗ Changing technical terminology
-✗ Using <img> tags for charts or graphs. ALL visualizations must use the Chart.js format.
-
-HTML OUTPUT using:
-<h2>, <h3>, <p>, <ul>, <ol>, <strong>, <table>
-<div class="formula">, <div class="example">, <div class="key-fact">
-
-CHART GENERATION (where relevant):
-- When data can be visualized (e.g., timelines, comparisons, distributions), generate a chart.
-- Use the following format EXACTLY:
-<div class="chart-container" style="width: 400px; height: 250px;">
-    <canvas></canvas>
-    <script type="application/json">
-        {{
-            "type": "bar",
-            "data": {{
-                "labels": ["Category A", "Category B"],
-                "datasets": [{{
-                    "label": "Dataset Label",
-                    "data": [10, 20]
-                }}]
-            }},
-            "options": {{
-                "responsive": true,
-                "maintainAspectRatio": false
-            }}
-        }}
-    </script>
-</div>
-
-**Visual Style Guide:**
-Your output must be a single, self-contained HTML block. It must start with a `<style>` tag containing all necessary CSS, followed by a single container `<div>` with the HTML content.
-- Use a modern, clean, and visually engaging style.
-- Use colored cards, illustrative boxes (like the `.so-what` class), and a clear visual hierarchy to make the content easy to digest.
-- Do NOT include `<html>`, `<head>`, or `<body>` tags.
-
-**Example of Desired Structure & Style:**
-```html
-<style>
-    .container {{ max-width: 900px; margin: auto; background: #fff; padding: 30px; border-radius: 10px; }}
-    .section-title {{ font-size: 1.8em; color: #3498db; border-left: 5px solid #3498db; padding-left: 15px; margin-bottom: 20px; }}
-    .card {{ background-color: #ecf0f1; border-radius: 8px; padding: 20px; text-align: center; }}
-    .so-what {{ background-color: #fffbeb; border-left: 5px solid #f39c12; padding: 20px; border-radius: 5px; }}
-</style>
-<div class="container">
-    <h2 class="section-title">This is a Section Title</h2>
-    <div class="card">
-        <h3>This is a Key Concept</h3>
-        <p>This is the explanation of the concept inside a colored card.</p>
-    </div>
-    <div class="so-what">
-        <h4>Why This Matters</h4>
-        <p>This is a highlighted box for important, real-world applications.</p>
-    </div>
-</div>
 ```

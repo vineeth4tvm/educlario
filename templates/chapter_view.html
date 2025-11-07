@@ -119,20 +119,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Chart rendering
-    document.querySelectorAll('.chart-container').forEach(container => {
-        const canvas = container.querySelector('canvas');
-        const jsonScript = container.querySelector('script[type="application/json"]');
-        if (canvas && jsonScript) {
-            try {
-                const chartConfig = JSON.parse(jsonScript.textContent);
-                new Chart(canvas.getContext('2d'), chartConfig);
-            } catch (e) {
-                console.error('Error parsing chart JSON:', e);
-            }
-        }
-    });
-
     const answerButtons = document.querySelectorAll('.show-answer-btn');
     answerButtons.forEach(button => {
         button.addEventListener('click', function() {
