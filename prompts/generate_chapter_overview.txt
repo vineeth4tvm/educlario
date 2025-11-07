@@ -1,152 +1,99 @@
-You are an expert educator. Your task is to transform the content of the provided chapter, titled "{chapter_title}", into a visually rich, self-contained HTML block.
+You are an expert educator transforming academic content for **EFFICIENT learning.**
+Your goal is to make "{chapter_title}" faster to learn **without losing any critical information.**
 
-**Instructions:**
-1.  Read the chapter content.
-2.  Populate the following HTML template with the key information from the chapter.
-3.  Replace all placeholders (e.g., `[INSERT ONE-LINER]`, `[FACT 1]`, `[FORMULA EXACT AS WRITTEN IN TEXT]`, etc.) with the relevant content.
-4.  For the chart, generate a simple but relevant visualization based on the chapter's data.
-5.  Your final output must be the complete, filled-in HTML block, starting with `<style>` and ending with `</div>`. Do not include `<html>`, `<body>`, or any other tags.
+====================================================
+🚫 DO NOT REMOVE ANY INFORMATION
+====================================================
+You must **preserve completely**:
+- All statistics, data, dates, case studies
+- All formulas and calculations
+- All tables and structured lists
+- All policy/program names, definitions, and terminology
+- All examples (you may compress wording, but do NOT omit them)
 
-**Template to Use:**
-```html
+====================================================
+🎯 OPTIMIZATION RULES
+====================================================
+- Convert long paragraphs → concise bullet points
+- Lead with the key point before explanation
+- Use consistent visual hierarchy:
+    <h2>, <h3>, <p>, <ul>, <ol>, <table>, <strong>
+- NO new tag types outside the allowed set.
+- Use **color-coded learning cards** and **highlight blocks** for clarity.
+- Use **boxed formulas** for equations and key definitions.
+- Convert comparisons into tables when possible.
+
+====================================================
+🎨 VISUAL STYLE (Palette B — Modern Pastel Learn Mode)
+====================================================
+Use soft pastel tones (light blue, mint, peach) with smooth card styling:
+
 <style>
-    :root{{
-        --accent:#6A9DFE;
-        --accent-soft:#E9F0FF;
-        --muted:#6b7280;
-        --bg:#ffffff;
-        --card:#fdfaff;
-        --highlight:#fff6e8;
-        --success:#e8f8ef;
-        --radius:12px;
-        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-    }}
-    .container{{ max-width:980px; margin:24px auto; background:var(--bg); padding:32px; border-radius:16px; box-shadow:0 6px 28px rgba(0,0,0,0.06); color:#222; }}
-    h2.section-title{{ font-size:1.7rem; color:var(--accent); border-left:6px solid var(--accent); padding-left:14px; margin-bottom:20px; }}
+    .container {{ max-width: 900px; margin: auto; background: #ffffff; padding: 32px; border-radius: 14px; font-family: 'Segoe UI', sans-serif; line-height: 1.6; }}
 
-    /* Cards */
-    .card{{ background:var(--accent-soft); padding:18px; border-radius:var(--radius); }}
-    .so-what{{ background:var(--highlight); border-left:5px solid #f4a832; padding:14px; border-radius:10px; margin-top:14px; }}
-    .example{{ background:#fff; border-left:4px solid var(--accent); padding:10px; border-radius:10px; margin-top:10px; }}
-    .key-fact{{ background:var(--success); border-left:4px solid #10b981; padding:10px; border-radius:10px; margin-top:10px; }}
-    .formula{{ background:#fefefe; border:1px dashed #bcd1ff; padding:10px; border-radius:10px; margin-top:10px; font-family:"Courier New", monospace; }}
+    h2 {{ font-size: 1.9em; color: #2563eb; margin-bottom: 18px; border-left: 6px solid #2563eb; padding-left: 12px; }}
+    h3 {{ font-size: 1.3em; color: #1e293b; margin-top: 28px; }}
 
-    /* Chips / Mini tags */
-    .pill{{ display:inline-block; background:#fff; border:1px solid rgba(0,0,0,0.08); padding:5px 10px; border-radius:999px; font-size:0.85rem; color:var(--muted); margin:4px; }}
+    .card-row {{ display: flex; flex-wrap: wrap; gap: 18px; margin: 18px 0; }}
+    .card {{ flex: 1; min-width: 240px; background: #f0f8ff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); }}
 
-    /* Tables */
-    table{{ width:100%; border-collapse:collapse; margin-top:10px; }}
-    th,td{{ padding:8px 10px; border-bottom:1px solid rgba(0,0,0,0.08); }}
-    th{{ background:var(--accent-soft); }}
+    .formula {{ background: #1e293b; color: white; font-family: monospace; padding: 14px; border-radius: 6px; text-align: center; margin: 18px 0; }}
 
-    /* Chart Wrapper */
-    .chart-container{{ width:400px; height:250px; margin-top:10px; }}
+    .chart-container {{ width: 100%; height: 260px; margin-top: 24px; }}
 </style>
-<div class="container">
 
-    <h2 class="section-title">{chapter_title}</h2>
+====================================================
+📊 CHARTS (REQUIRED FORMAT)
+====================================================
+Always include Chart.js before charts:
 
-    <!-- Key Insights -->
-    <div class="card">
-        <h3>Key Insights (1-minute scan)</h3>
-        <ul>
-            <li><strong>Core Idea:</strong> [INSERT ONE-LINER]</li>
-            <li><strong>3 Must-Remember Facts:</strong>
-                <ul>
-                    <li>[FACT 1]</li>
-                    <li>[FACT 2]</li>
-                    <li>[FACT 3]</li>
-                </ul>
-            </li>
-        </ul>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        <div class="formula">
-            <strong>Key Formula(s):</strong><br>
-            [FORMULA EXACT AS WRITTEN IN TEXT]
-        </div>
+To insert a chart, use this format:
 
-        <div class="so-what">
-            <strong>Why this matters:</strong><br>
-            [REAL-WORLD USE / POLICY / APPLICATION]
-        </div>
-    </div>
-
-    <!-- Comparison Table -->
-    <div style="margin-top:24px;">
-        <h3>Table / Quick Reference</h3>
-        <table>
-            <thead><tr><th>Term / Scheme</th><th>Details</th><th>Notes</th></tr></thead>
-            <tbody>
-                <tr><td>[NAME]</td><td>[DATA]</td><td>[SIGNIFICANCE]</td></tr>
-                <tr><td>[NAME]</td><td>[DATA]</td><td>[SIGNIFICANCE]</td></tr>
-            </tbody>
-        </table>
-
-        <div class="key-fact">
-            <strong>Key Fact:</strong> [CRITICAL STAT OR OUTCOME]
-        </div>
-    </div>
-
-    <!-- Concepts -->
-    <div style="margin-top:24px;">
-        <h3>Core Concepts (Compressed)</h3>
-        <ul>
-            <li><strong>[CONCEPT 1]</strong> — short clear explanation preserving terminology.</li>
-            <li><strong>[CONCEPT 2]</strong> — one-sentence functional meaning.</li>
-            <li><strong>[CONCEPT 3]</strong> — tie to example / program name.</li>
-        </ul>
-
-        <div>
-            <span class="pill">Term: [TERM]</span>
-            <span class="pill">Scheme: [PROGRAM NAME]</span>
-            <span class="pill">Year: [YYYY]</span>
-        </div>
-    </div>
-
-    <!-- Worked Examples -->
-    <div style="margin-top:24px;">
-        <h3>Worked Example(s)</h3>
-
-        <div class="example">
-            <strong>Example 1</strong>
-            <ol>
-                <li>Given: [DATA EXACT]</li>
-                <li>Steps: [SHOW CALCULATION]</li>
-                <li>Answer: <strong>[FINAL VALUE]</strong></li>
-            </ol>
-        </div>
-    </div>
-
-    <!-- Visual Summary Chart -->
-    <div style="margin-top:28px;">
-        <h3>Visual Summary (Easy Memory Anchor)</h3>
-
-        <div class="chart-container">
-            <canvas id="{chart_id}"></canvas>
-        </div>
-
-        <script>
-            new Chart(document.getElementById("{chart_id}"), {{
-                type: "bar",
-                data: {{
-                    labels: ["A", "B", "C"],
-                    datasets: [{{
-                        label: "Comparison",
-                        data: [10, 22, 15],
-                        backgroundColor: ["#A6C8FF", "#FFDDC1", "#C7F9CC"],
-                        borderRadius: 6
-                    }}]
-                }},
-                options: {{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {{ y: {{ ticks: {{ stepSize: 5 }} }} }}
-                }}
-            }});
-        </script>
-    </div>
-
+<div class="chart-container">
+    <canvas id="{chart_id}"></canvas>
 </div>
-```
-{context_prompt_addition}
-```
+<script>
+    const ctx1 = document.getElementById('{chart_id}').getContext('2d');
+    new Chart(ctx1, {{
+        type: 'bar',                                 // or 'line', 'pie'
+        data: {{
+            labels: ["A", "B", "C"],                 // Replace with actual data labels
+            datasets: [{{
+                label: "Dataset Name",
+                data: [10, 20, 30],                  // Replace with actual values
+                borderWidth: 2,
+                backgroundColor: ["#a7d8ff", "#ffddc1", "#c4f0c2"]   // Pastel Palette B
+            }}]
+        }},
+        options: {{ responsive: true, maintainAspectRatio: false }}
+    }});
+</script>
+
+====================================================
+📦 OUTPUT STRUCTURE (VERY IMPORTANT)
+====================================================
+Your output must be a **single HTML block**, starting with:
+
+<style> … </style>
+<div class="container">
+    … formatted content …
+</div>
+
+Do **NOT** use:
+✗ <html> ✗ <head> ✗ <body> ✗ external references ✗ images
+
+====================================================
+💡 PERSONALIZATION
+====================================================
+Use all of the following contextual variables when supplied:
+
+{user_context_prompt}
+{course_context_prompt}
+{book_context_prompt}
+
+====================================================
+🥇 OUTPUT NOW
+====================================================
+Generate the chapter content according to all rules above.
