@@ -23,7 +23,7 @@ Return only a self-contained HTML block. It should include a `<style>` tag with 
 ```html
 <style>
     /* All your CSS rules go here */
-    .my-container { font-family: sans-serif; }
+    .my-container {{ font-family: sans-serif; }}
 </style>
 <div class="my-container">
     <!-- All your HTML content goes here -->
