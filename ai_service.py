@@ -86,12 +86,14 @@ def get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_ti
         if not trimmed_filepath:
             raise Exception("Failed to trim PDF for overview generation.")
 
-        user_context_text = user_context.generated_context_text if user_context else ""
+        course_context_db = chapter.book.course.context if chapter.book.course else None
+        book_context_db = chapter.book.context
+        user_context_prompt = f"USER CONTEXT: {user_context.generated_context_text if user_context else 'Not provided.'}"
+        course_context_prompt = f"COURSE CONTEXT: Subject: {course_context_db.subject_analysis if course_context_db else 'N/A'}."
+        book_context_prompt = f"BOOK CONTEXT: Themes: {book_context_db.themes if book_context_db else 'N/A'}."
         context_prompt_addition = f"For context, the book's chapters are: {', '.join(all_chapter_titles)}."
-        if user_context_text:
-            context_prompt_addition += f"\n\n**USER CONTEXT:**\n{user_context_text}"
 
-        prompt = _load_prompt('generate_chapter_overview.txt', chapter_title=chapter.title, context_prompt_addition=context_prompt_addition, chart_id=chart_id)
+        prompt = _load_prompt('generate_chapter_overview.txt', chapter_title=chapter.title, context_prompt_addition=context_prompt_addition, chart_id=chart_id, user_context_prompt=user_context_prompt, course_context_prompt=course_context_prompt, book_context_prompt=book_context_prompt)
         if not prompt: return None
 
         pdf_part = _create_pdf_part(trimmed_filepath)
