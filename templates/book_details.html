@@ -26,7 +26,13 @@
         <ul>
             {% for chapter in chapters %}
                 <li>
-                    <a href="{{ url_for('chapter_view', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">{{ chapter.title }}</a>
+                    <strong>Chapter {{ chapter.chapter_number }}: {{ chapter.title }}</strong>
+                    {% if chapter.page_range %}(Pages: {{ chapter.page_range }}){% endif %}
+                    <br>
+                    <a href="{{ url_for('chapter_view', course_id=book.course_id, book_id=book.id, chapter_id=chapter.id) }}">View Chapter Content</a>
+                    {% if chapter.page_range %}
+                    | <a href="{{ url_for('download_chapter_pdf', book_id=book.id, chapter_id=chapter.id) }}">Download Chapter PDF</a>
+                    {% endif %}
                 </li>
             {% endfor %}
         </ul>

@@ -1,6 +1,5 @@
 import os
 import json
-import uuid
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
 from werkzeug.utils import secure_filename
@@ -316,8 +315,7 @@ def generate_overview(course_id, book_id, chapter_id):
         all_chapters_for_book = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chapter_number).all()
         all_chapter_titles = [c.title for c in all_chapters_for_book]
 
-        chart_id = f"chart_{uuid.uuid4().hex}"
-        overview_html = ai_service.get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles, chart_id)
+        overview_html = ai_service.get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles)
         content_record.html_content = overview_html or "<p>Content generation failed.</p>"
         db.session.commit()
         flash("Chapter overview generated successfully!")
@@ -373,8 +371,7 @@ def deep_dive_content(course_id, book_id, chapter_id):
         user_context = UserContext.query.filter_by(user_id=current_user.id).first()
         course_context_db = chapter.book.course.context if chapter.book.course else None
         book_context_db = chapter.book.context
-        chart_id = f"chart_{uuid.uuid4().hex}"
-        rich_content_html = ai_service.get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db, chart_id)
+        rich_content_html = ai_service.get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db)
         content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first_or_404()
         content_record.rich_html_content = rich_content_html
         db.session.commit()
