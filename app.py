@@ -1,6 +1,7 @@
 import os
 import json
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file
+import uuid
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
@@ -301,40 +302,6 @@ def chapter_view(course_id, book_id, chapter_id):
     content = GeneratedContent.query.filter_by(chapter_id=chapter.id).first()
     return render_template('chapter_view.html', book=book, chapter=chapter, content=content)
 
-@app.route('/book/<int:book_id>/chapter/<int:chapter_id>/download')
-@login_required
-def download_chapter_pdf(book_id, chapter_id):
-    book = Book.query.filter_by(id=book_id, user_id=current_user.id).first_or_404()
-    chapter = Chapter.query.filter_by(id=chapter_id, book_id=book.id).first_or_404()
-
-    if not chapter.page_range:
-        flash("This chapter has no page range defined and cannot be downloaded.")
-        return redirect(url_for('book_details', course_id=book.course_id, book_id=book.id))
-
-    original_filepath = os.path.join(app.config['UPLOAD_FOLDER'], book.filename)
-    trimmed_filepath = None
-    try:
-        trimmed_filepath = pdf_utils.trim_pdf(original_filepath, chapter.page_range)
-        if not trimmed_filepath:
-            raise Exception("Failed to trim PDF for download.")
-
-        # Sanitize the chapter title to create a valid filename
-        safe_chapter_title = "".join(c for c in chapter.title if c.isalnum() or c in (' ', '_')).rstrip()
-        download_name = f"{book.original_name} - Ch{chapter.chapter_number} - {safe_chapter_title}.pdf"
-
-        return send_file(
-            trimmed_filepath,
-            as_attachment=True,
-            download_name=download_name,
-            mimetype='application/pdf'
-        )
-    except Exception as e:
-        flash(f"An error occurred while preparing the download: {e}")
-        return redirect(url_for('book_details', course_id=book.course_id, book_id=book.id))
-    finally:
-        if trimmed_filepath:
-            pdf_utils.cleanup_temp_file(trimmed_filepath)
-
 # --- Generation Routes ---
 @app.route('/course/<int:course_id>/book/<int:book_id>/chapter/<int:chapter_id>/generate_overview', methods=['POST'])
 @login_required
@@ -349,7 +316,8 @@ def generate_overview(course_id, book_id, chapter_id):
         all_chapters_for_book = Chapter.query.filter_by(book_id=book.id).order_by(Chapter.chapter_number).all()
         all_chapter_titles = [c.title for c in all_chapters_for_book]
 
-        overview_html = ai_service.get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles)
+        chart_id = f"chart_{uuid.uuid4().hex}"
+        overview_html = ai_service.get_overview_for_trimmed_chapter(chapter, book, user_context, all_chapter_titles, chart_id)
         content_record.html_content = overview_html or "<p>Content generation failed.</p>"
         db.session.commit()
         flash("Chapter overview generated successfully!")
@@ -405,7 +373,8 @@ def deep_dive_content(course_id, book_id, chapter_id):
         user_context = UserContext.query.filter_by(user_id=current_user.id).first()
         course_context_db = chapter.book.course.context if chapter.book.course else None
         book_context_db = chapter.book.context
-        rich_content_html = ai_service.get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db)
+        chart_id = f"chart_{uuid.uuid4().hex}"
+        rich_content_html = ai_service.get_deep_dive_content(chapter, book, user_context, course_context_db, book_context_db, chart_id)
         content_record = GeneratedContent.query.filter_by(chapter_id=chapter.id).first_or_404()
         content_record.rich_html_content = rich_content_html
         db.session.commit()
