@@ -25,7 +25,12 @@
         </div>
         <div>
             <h4>Preferred Explanation Style:</h4>
-            <p>{{ user_context.explanation_style or 'Not set' }}</p>
+            {% if user_context.explanation_style %}
+                {% set styles = user_context.explanation_style | fromjson %}
+                <p>{{ styles | join(', ') }}</p>
+            {% else %}
+                <p>Not set</p>
+            {% endif %}
         </div>
         <hr>
         <div>

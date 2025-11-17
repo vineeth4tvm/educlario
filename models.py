@@ -73,7 +73,7 @@ class UserContext(db.Model):
     academic_level = db.Column(db.String(100))
     interests = db.Column(db.Text)
     location = db.Column(db.String(100))
-    explanation_style = db.Column(db.String(100))
+    explanation_style = db.Column(db.Text)
     generated_context_text = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

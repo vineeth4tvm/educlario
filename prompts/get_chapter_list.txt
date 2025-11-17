@@ -1,4 +1,8 @@
-Analyze the provided PDF file, which is a textbook titled "{original_filename}". Your task is to identify all the main chapters or sections.
+Analyze the provided PDF file, which is a textbook titled "{original_filename}". Your task is to identify all the main chapters or sections and their complete page ranges.
+
+**CRITICAL INSTRUCTIONS FOR PAGE RANGES:**
+1.  A chapter's page range MUST include all supplementary materials that appear directly after its main content. This includes sections like "Summary," "Review Questions," "Assessment," "End-of-Chapter Quiz," "Answer Key," etc.
+2.  A chapter's end page should be the very last page before the title of the *next* chapter begins.
 
 Return a single JSON array, where each object in the array represents a chapter.
 For each chapter object, you MUST extract the following three keys:
