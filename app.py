@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 import json
 import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 from dotenv import load_dotenv
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -121,6 +122,9 @@ def analyze_subject_domain(subject_name: str, course_description: str = "") -> D
         cleaned_json = _clean_json_response(response.text)
         return json.loads(cleaned_json)
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         return {"error": f"Failed to analyze subject. Reason: {e}"}
 
@@ -191,6 +195,9 @@ def process_pdf_and_extract_chapters(file_path: str, subject_name: str, course_d
 
         return result
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         return {"error": f"Failed to process PDF. Reason: {type(e).__name__}: {e}"}
 
@@ -222,6 +229,9 @@ def answer_question_from_context(question: str, context: str, subject_domain: st
         response = flash_model.generate_content(formatted_prompt)
         return response.text
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return f"Error: Rate limit exceeded. Reason: {e}"
     except Exception as e:
         return f"Error: Could not get an answer from the AI. Reason: {e}"
 
@@ -255,6 +265,9 @@ Optional[dict]:
         cleaned_json = _clean_json_response(response.text)
         return json.loads(cleaned_json)
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         return {"error": f"Failed to generate quiz. Reason: {e}"}
 
@@ -289,6 +302,9 @@ Optional[dict]:
         cleaned_json = _clean_json_response(response.text)
         return json.loads(cleaned_json)
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         return {"error": f"Failed to generate visualization. Reason: {e}"}
 
@@ -327,6 +343,9 @@ def simplify_concept(concept_text: str, difficulty_level: str = "beginner", subj
         response = flash_model.generate_content(formatted_prompt)
         return response.text
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return f"Error: Rate limit exceeded. Reason: {e}"
     except Exception as e:
         return f"Error: Could not simplify concept. Reason: {e}"
 
@@ -563,6 +582,9 @@ def gather_web_course_intelligence(course_name: str, university: str = "", cours
 
         return course_intelligence
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         return {"error": f"Failed to gather course intelligence. Reason: {e}"}
 
@@ -766,6 +788,9 @@ def process_pdf_with_course_intelligence(file_path: str, subject_name: str, enha
 
         return result
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         return {"error": f"Failed to process PDF with course intelligence. Reason: {type(e).__name__}: {e}"}
 
@@ -877,6 +902,14 @@ def test_ai_service_connection() -> dict:
             ]
         }
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {
+            "status": "error",
+            "message": f"Rate limit exceeded. Reason: {e}",
+            "configured": True,
+            "connection_error": True
+        }
     except Exception as e:
         return {
             "status": "error",
@@ -986,6 +1019,9 @@ def process_pdf_in_chunks(file_path: str, subject_name: str, enhanced_course_con
         print(f"Final result: {len(all_chapters)} chapters processed")
         return result
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         print(f"Chunked processing failed: {e}")
         # Fallback to original processing
@@ -1055,7 +1091,9 @@ def analyze_pdf_structure(uploaded_file, subject_name: str, course_synthesis: di
             return {"error": f"Only {len(chapters)} chapters detected - this seems low"}
 
         return structure_data
-
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         return {"error": f"Structure analysis failed: {e}"}
 
@@ -1136,6 +1174,9 @@ def process_chapter_batch(uploaded_file, chapter_batch: List[dict], subject_name
 
         return batch_data
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         print(f"Batch processing error: {e}")
         return {"error": f"Batch processing failed: {e}"}
@@ -1199,6 +1240,9 @@ def generate_subject_overview(uploaded_file, subject_name: str, course_synthesis
         cleaned_json = _clean_json_response(response.text)
         return json.loads(cleaned_json)
 
+    except google_exceptions.ResourceExhausted as e:
+        flash("We are currently experiencing high demand. Please try again in a few minutes.", "error")
+        return {"error": f"Rate limit exceeded. Reason: {e}"}
     except Exception as e:
         print(f"Overview generation error: {e}")
         return {
